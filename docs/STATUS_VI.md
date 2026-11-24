@@ -12,7 +12,7 @@ Release 0.2.0 đã có dữ liệu thật, nghiên cứu hồi cứu và kết q
 | Sensitivities | Cost ×1/×2/×3; delay 1/2/3; paired 7-day block intervals |
 | Notebook | 4 notebook đã thực thi |
 | Excel | Golden case bằng công thức, thay input có recalc, audit 4 chênh lệch bằng 0; market snapshot thật |
-| Report | PDF 10 trang, Markdown, memo VI |
+| Report | PDF 10 trang, Markdown, memo tiếng Anh |
 | Dashboard | Đã live: https://thvh2006.github.io/crypto-carry-execution-lab/ ; controls, calculator và CSV 276 dòng đã kiểm tra |
 | Paper | Code và tests hoàn tất; runner GitHub bị HTTP 451 tại Binance futures; cron đã bỏ, chỉ còn manual trigger |
 | Kiểm thử | 18 tests pass local và GitHub CI |
