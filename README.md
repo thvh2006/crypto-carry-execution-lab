@@ -2,7 +2,7 @@
 
 **A funding filter can lose more to switching costs than it earns in funding.** This project measures that trade-off with separate spot/perpetual accounts, causal forecasts and auditable capital accounting.
 
-[Interactive dashboard](https://thvh2006.github.io/crypto-carry-execution-lab/) · [10-page research report](reports/results/P3_Crypto_Carry_Research_Report.pdf) · [Decision memo (VI)](reports/results/P3_Decision_Memo_VI.md) · [Excel model](deliverables/excel/P3_Carry_Review.xlsx)
+[Interactive dashboard](https://thvh2006.github.io/crypto-carry-execution-lab/) · [10-page research report](reports/results/P3_Crypto_Carry_Research_Report.pdf) · [Decision memo](reports/results/P3_Decision_Memo.md) · [Excel model](deliverables/excel/P3_Carry_Review.xlsx)
 
 ## Result
 

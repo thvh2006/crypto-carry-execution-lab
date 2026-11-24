@@ -5,7 +5,7 @@
     "index.html": "6926c266c5b120d7c3f4bc630d2ec1b57dc5f78d6d543727ec72d1868baaf416",
     "Makefile": "bb884c99e30d15ce80109a255c36cc6c63feef4187f761e90dca31f0cc4beb69",
     "pyproject.toml": "14ab2df96fd5998580e76a537e742357c26bee261f6fad614ac65e2f954426dc",
-    "README.md": "a46530883713f8dda21fc1fbe1e96dc7f42d79be869063c4e0b377857b053a20",
+    "README.md": "1e17775c7ed6490956d93ea60736ea20465e2f09b00ba81455ac31a502ae19aa",
     ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     ".gitignore": "fd3922f41d4a5b83b7e1d6daa5cd8590c81709d93b3edfc43a31b538b64eefa3",
     "artifacts/demo/stress.csv": "38641c75b994578fc5352cc12694d907f076b0680bd7608cc32802675617dfc4",
@@ -37,7 +37,7 @@
     "tests/test_market.py": "19e2c62187ae2a0c018c81731944fdfaf411b7e35f4f193dce07f21b625879c0",
     "tests/test_paper.py": "79634c386f6437352cef2e0d4cb0dd621e218c4727c3b107dd1b92574fcd2825",
     "docs/METHOD.md": "f1ea2a86313d6469bf6d07a14ec92ca1abc2c87910dad523fae330454ca73dd5",
-    "docs/STATUS_VI.md": "8e6914bb91620cb3a4ee7cd7687bb85144274014f9be286679df24ddcc8183dd",
+    "docs/STATUS_VI.md": "07a00b7cccdee9eff344a628efd2377d26bf9ed531dc06c34905c2b451a4ecab",
     "docs/SOURCES.md": "394a4463615a658c3fe4f53a434ae5db064a69ca3b4d7965ff15a819d98b19fb",
     "docs/RUNBOOK.md": "b432a04df99fad6491e8e913a701b3e855c106482cc737ccf39964b3bb156872",
     "docs/STUDY_PROTOCOL_V1.md": "47a40b99a31cd7c580e3bf71cd3129d150abe65045d9d9fdbda924d08a553721",
@@ -50,7 +50,7 @@
     "carry/__init__.py": "27059178c2d526c44a886dd622e2b8e042c9bb762cf853556cdc56c50a016c41",
     "carry/engine.py": "9620fa68e5610e8c5d982766696317553837bc1ae1559d19b2d765de871c160d",
     "carry/study.py": "be06e4433b8febf03823b09654461438438a22ded1fc5ea9a196655ec716c67b",
-    "scripts/build_report.py": "8c1a0249e1041453ca50b37768cd8c691b9a7dc8cb3c4e3a7e7f4f25c261a6fd",
+    "scripts/build_report.py": "98acde0db4c27f67ce3a288566fc3c6b3ec7f3cee203d87c04ee6904e1b5b4d9",
     "scripts/export_public.py": "1be140a0b8f64ff1a2a8f74d2b8eeffecaea552657679be847fba7458b1fae4e",
     "scripts/build_workbook.mjs": "a6ca2363c25e331e4b4a435eecfe13bfc6f501e2ea285abb69905965ac5b1a1a",
     "scripts/market_notebook_cells.json": "897257daec6e8105622764485ca06b3262abc5e40384810961b158034195ed28",
@@ -63,8 +63,8 @@
     "notebooks/03_funding_forecasts_and_costs.ipynb": "069696abd9c17b46aa8779f1ff82d10482695f596db83ae36e786ca4ac42cf84",
     "notebooks/02_two_leg_ledger_and_baselines.ipynb": "5f721ca544a44e484dc20705282643bc3f21c880c9be035df54bab52b4a659dd",
     "reports/plan/REPORT_PLAN_VI.md": "39ca8e86bee02b062fb89ed70d3ad32b5e77bc14f3b41c2132e4336087f82b32",
-    "reports/results/P3_Crypto_Carry_Research_Report.pdf": "31486acc6552729d290a65a0c00d2769567cd639845835e9c23878bd28cd8008",
-    "reports/results/P3_Decision_Memo_VI.md": "617500c6ad9a8988468948184eaad2357ed0b13781d4d8a8dfcf14206cb0731c",
+    "reports/results/P3_Decision_Memo.md": "2402cf79fa08d862c332ae12f5e3486fd81b948f13cdd8a2ad0dbb70d6c5f2ad",
+    "reports/results/P3_Crypto_Carry_Research_Report.pdf": "920262346e2aed95157a28602e6a19e9c08eb3e1c91bcd20b7d5a0abf28c524e",
     "reports/results/P3_Crypto_Carry_Research_Report.md": "c9796530db53337723c1d2ddf2201497702d97a27805f1645d78eefa5cca9632"
   }
 }
