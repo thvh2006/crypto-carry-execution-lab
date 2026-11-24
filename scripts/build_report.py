@@ -156,38 +156,48 @@ doc.title='Funding Carry after Transaction Costs: A BTC and ETH Study'
 doc.author='Crypto Carry and Execution Lab'
 doc.build(story,onFirstPage=footer,onLaterPages=footer)
 (OUT/'P3_Crypto_Carry_Research_Report.md').write_text('\n\n'.join(markdown))
-memo=f'''# P3 - Memo kết quả và quyết định
+memo=f'''# P3 - Decision Memo
 
-Ngày lập: 24/11/2026. Run `{receipt['run_id']}`. Đây là nghiên cứu hồi cứu năm 2025, không phải lợi nhuận giao dịch thật.
+**Date:** 24 November 2026  
+**Study run:** `{receipt['run_id']}`  
+**Scope:** Retrospective 2025 research with hypothetical execution.
 
-## Kết quả cần nhớ
+## Decision
 
-Mỗi tài sản/chính sách có sleeve riêng 100.000 USDT. Holdout là 01/10-31/12/2025, reset vốn đầu kỳ và đóng vị thế cuối kỳ.
+Retain continuous carry as the research benchmark. Reject the naive last-settled-funding threshold at the assumed transaction-cost schedule. Neither tested forecast strategy improves on continuous carry in the historical holdout. These findings do not establish a deployable trading edge.
 
-| Chính sách | BTC net P&L | ETH net P&L |
+## Historical holdout results
+
+The holdout covers 1 October-31 December 2025. Each asset-policy combination starts flat with a separate **100,000 USDT** sleeve and closes at the final sampled observation. Results are net of modeled commissions and slippage; the two assets do not share a single capital denominator.
+
+| Policy | BTC net P&L (USDT) | ETH net P&L (USDT) |
 |---|---:|---:|
-| Giữ carry liên tục | {num(find('BTCUSDT','continuous')['net_pnl'])} | {num(find('ETHUSDT','continuous')['net_pnl'])} |
-| Bật/tắt theo funding gần nhất | {num(find('BTCUSDT','threshold')['net_pnl'])} | {num(find('ETHUSDT','threshold')['net_pnl'])} |
-| Dự báo bằng mean 9 kỳ | {num(find('BTCUSDT','forecast_rolling_mean')['net_pnl'])} | {num(find('ETHUSDT','forecast_rolling_mean')['net_pnl'])} |
-| Ridge AR(1) | {num(find('BTCUSDT','forecast_ridge_ar1')['net_pnl'])} | {num(find('ETHUSDT','forecast_ridge_ar1')['net_pnl'])} |
+| Continuous carry | {num(find('BTCUSDT','continuous')['net_pnl'])} | {num(find('ETHUSDT','continuous')['net_pnl'])} |
+| Last-settled-rate threshold | {num(find('BTCUSDT','threshold')['net_pnl'])} | {num(find('ETHUSDT','threshold')['net_pnl'])} |
+| Nine-period mean forecast + threshold | {num(find('BTCUSDT','forecast_rolling_mean')['net_pnl'])} | {num(find('ETHUSDT','forecast_rolling_mean')['net_pnl'])} |
+| Ridge AR(1) forecast + threshold | {num(find('BTCUSDT','forecast_ridge_ar1')['net_pnl'])} | {num(find('ETHUSDT','forecast_ridge_ar1')['net_pnl'])} |
 
-Threshold đổi vị thế quá nhiều nên phí lớn hơn funding thu được. Dự báo mượt hơn giảm đổi vị thế, nhưng vẫn lỗ và chưa vượt carry liên tục. Sai số dự báo thấp hơn không tự động tạo lợi nhuận tốt hơn. Không chỉnh threshold sau khi nhìn holdout; nếu thử hysteresis/cost-aware entry thì phải lập study mới.
+Frequent switching makes the threshold policy's commissions exceed its funding receipts. Smoother forecasts reduce turnover and losses relative to the last-rate rule, but both forecast strategies remain negative in both sleeves. Lower forecast error does not automatically translate into better net economics. The continuous-carry gain is small relative to total capital and offers limited room for additional friction or opportunity cost.
 
-## Bằng chứng đã có
+## Evidence supporting the decision
 
-- BTC/ETH: đủ 1.095 funding events và 1.095 bars cho từng stream spot/perp/mark trong 2025; không thiếu/trùng kỳ.
-- 93 funding events BTC tháng 1 khớp archive/API về cả timestamp và rate.
-- 18 tests; 13.140 dòng ledger cho 6 policy variants × 3 partitions × 2 assets. Sai số đối soát tối đa dưới 1e-9 USDT.
-- Freeze hash trước khi xem kết quả; ba partition; paired block bootstrap; cost ×1/×2/×3 và delay 1/2/3 events.
-- Workbook có công thức và golden case độc lập; dashboard giữ các kết quả âm.
+- **Coverage:** 1,095 funding events and 1,095 bars for each spot, perpetual and mark stream per asset in 2025, with no missing or duplicate nominal events.
+- **Ingestion cross-check:** All 93 January BTC funding timestamps and rates match between the public archive and API. Both are from the same provider, so this is not independent confirmation of exchange truth.
+- **Accounting:** 18 tests and 13,140 event-ledger rows across six policy variants, three temporal partitions and two assets. Maximum reconciliation residual is below 1e-9 USDT.
+- **Research controls:** Written protocol and frozen source/input/configuration hashes before the first strategy-return inspection; chronological development, validation and historical holdout partitions; paired seven-day block-bootstrap intervals; cost multiples of 1, 2 and 3; execution delays of 1, 2 and 3 observations.
+- **Independent review:** Formula-driven workbook with a Python golden-case reconciliation, executed notebooks and a public dashboard retaining negative results.
 
-## Giới hạn và bước tiếp
+## Limits and operational status
 
-Giá tham chiếu là open bar 8 giờ, funding có timestamp thực; độ lệch tối đa 16 ms. Fill, fee tier và flat maintenance là giả định. Bar-high margin chỉ là proxy, không chứng minh không bị thanh lý. Đơn vị P&L là USDT, không phải USD bảo đảm. Chưa có bằng chứng depth/capacity, tier margin lịch sử hay forward track record.
+Executable references are eight-hour bar opens matched to actual funding timestamps, with an offset of up to 16 ms. Fills, fee tiers and flat maintenance rates are assumptions. The bar-high margin proxy does not certify intraperiod liquidation safety. P&L is denominated in USDT, not guaranteed USD value. Historical margin tiers, order-book depth, execution capacity and a forward track record remain unverified.
 
-Paper collector chỉ đọc dữ liệu công khai, ghi vị thế giả lập, không gửi lệnh và không cần API key. Không thể tạo trước một chuỗi kết quả tương lai. Trạng thái triển khai/runner thực tế được ghi riêng trong `docs/STATUS_VI.md`.
+The paper collector reads public data and records hypothetical positions without API keys or order endpoints. Its hosted GitHub run returned **HTTP 451** from Binance futures. Automatic scheduling was removed; no successful forward paper state or performance is claimed. The failure is retained as operational evidence rather than replaced with assumed data.
 
-Kết luận: giữ carry liên tục làm benchmark; bác bỏ threshold đơn giản ở bộ giả định chi phí hiện tại. Giá trị portfolio của P3 là một quy trình nghiên cứu kiểm chứng được, bao gồm kết quả âm và giới hạn thực thi.
+## Next research gate
+
+Any hysteresis, cost-aware entry rule or model change requires a separately recorded study. The current holdout has been consumed and must not be relabeled untouched. Before considering deployment, obtain execution-level observations and historical margin specifications, verify a permitted data-access environment, and accumulate a genuine forward paper record.
+
+The portfolio contribution is a reproducible research process that explains a negative result and its execution limits, rather than a claim of guaranteed carry income.
 '''
-(OUT/'P3_Decision_Memo_VI.md').write_text(memo)
+(OUT/'P3_Decision_Memo.md').write_text(memo)
 print('Report and memo written')
