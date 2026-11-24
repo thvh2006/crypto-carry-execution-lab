@@ -50,7 +50,7 @@
     "carry/__init__.py": "27059178c2d526c44a886dd622e2b8e042c9bb762cf853556cdc56c50a016c41",
     "carry/engine.py": "9620fa68e5610e8c5d982766696317553837bc1ae1559d19b2d765de871c160d",
     "carry/study.py": "be06e4433b8febf03823b09654461438438a22ded1fc5ea9a196655ec716c67b",
-    "scripts/build_report.py": "73c46448caaba47f076cf454440da86ec1289f92c13f4e23f07b25abc04a6ad0",
+    "scripts/build_report.py": "8c1a0249e1041453ca50b37768cd8c691b9a7dc8cb3c4e3a7e7f4f25c261a6fd",
     "scripts/export_public.py": "1be140a0b8f64ff1a2a8f74d2b8eeffecaea552657679be847fba7458b1fae4e",
     "scripts/build_workbook.mjs": "a6ca2363c25e331e4b4a435eecfe13bfc6f501e2ea285abb69905965ac5b1a1a",
     "scripts/market_notebook_cells.json": "897257daec6e8105622764485ca06b3262abc5e40384810961b158034195ed28",
@@ -63,8 +63,8 @@
     "notebooks/03_funding_forecasts_and_costs.ipynb": "069696abd9c17b46aa8779f1ff82d10482695f596db83ae36e786ca4ac42cf84",
     "notebooks/02_two_leg_ledger_and_baselines.ipynb": "5f721ca544a44e484dc20705282643bc3f21c880c9be035df54bab52b4a659dd",
     "reports/plan/REPORT_PLAN_VI.md": "39ca8e86bee02b062fb89ed70d3ad32b5e77bc14f3b41c2132e4336087f82b32",
-    "reports/results/P3_Crypto_Carry_Research_Report.pdf": "2bd98d0f98804888e9faed048b6bfe9472e61cc3d4355d2409d102e156d301c3",
+    "reports/results/P3_Crypto_Carry_Research_Report.pdf": "31486acc6552729d290a65a0c00d2769567cd639845835e9c23878bd28cd8008",
     "reports/results/P3_Decision_Memo_VI.md": "617500c6ad9a8988468948184eaad2357ed0b13781d4d8a8dfcf14206cb0731c",
-    "reports/results/P3_Crypto_Carry_Research_Report.md": "be654fd46b0ae4067cd4aad4000a6e6429bb1c60142ca48a3fc158c71f392e5c"
+    "reports/results/P3_Crypto_Carry_Research_Report.md": "c9796530db53337723c1d2ddf2201497702d97a27805f1645d78eefa5cca9632"
   }
 }
