@@ -1,0 +1,37 @@
+{
+  "run_id": "eed008040d6c6d18",
+  "status": "RETROSPECTIVE MARKET STUDY \u2014 hypothetical sampled fills",
+  "config": {
+    "capital": 100000.0,
+    "spot_wallet_fraction": 0.65,
+    "allocation_fraction": 0.55,
+    "spot_fee_bps": 10.0,
+    "perp_fee_bps": 5.0,
+    "slippage_bps": 2.0,
+    "maintenance_rate": 0.01,
+    "close_reserve_bps": 10.0,
+    "funding_threshold": 5e-05,
+    "quantity_step": 0.001,
+    "initial_margin_rate": 0.1,
+    "financing_apr": 0.0
+  },
+  "as_of": "2025-12-31T16:00:00.001000Z",
+  "published_at": "2026-11-24T11:25:26.274453+00:00",
+  "freeze_sha256": "a57c9d504645739a19bc1e74fc58115f9c4e990c04438f8a3def37b2391cd9ac",
+  "partitions": {
+    "development": [
+      "2025-01-01",
+      "2025-07-01"
+    ],
+    "validation": [
+      "2025-07-01",
+      "2025-10-01"
+    ],
+    "holdout": [
+      "2025-10-01",
+      "2026-01-01"
+    ]
+  },
+  "validation": "Reconciled every event; no live orders",
+  "model_version": "0.2.0"
+}

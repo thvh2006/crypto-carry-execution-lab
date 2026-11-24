@@ -1,0 +1,64 @@
+{
+  "kind": "market",
+  "source_urls": [
+    "https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=8h&startTime=1735689600000&endTime=1767225599999&limit=1000",
+    "https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=8h&startTime=1764489600000&endTime=1767225599999&limit=1000",
+    "https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=8h&startTime=1735689600000&endTime=1767225599999&limit=1500",
+    "https://fapi.binance.com/fapi/v1/markPriceKlines?symbol=BTCUSDT&interval=8h&startTime=1735689600000&endTime=1767225599999&limit=1500",
+    "https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&startTime=1735689600000&endTime=1767225599999&limit=1000",
+    "https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&startTime=1764460800004&endTime=1767225599999&limit=1000",
+    "https://data-api.binance.vision/api/v3/klines?symbol=ETHUSDT&interval=8h&startTime=1735689600000&endTime=1767225599999&limit=1000",
+    "https://data-api.binance.vision/api/v3/klines?symbol=ETHUSDT&interval=8h&startTime=1764489600000&endTime=1767225599999&limit=1000",
+    "https://fapi.binance.com/fapi/v1/klines?symbol=ETHUSDT&interval=8h&startTime=1735689600000&endTime=1767225599999&limit=1500",
+    "https://fapi.binance.com/fapi/v1/markPriceKlines?symbol=ETHUSDT&interval=8h&startTime=1735689600000&endTime=1767225599999&limit=1500",
+    "https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&startTime=1735689600000&endTime=1767225599999&limit=1000",
+    "https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&startTime=1764460800004&endTime=1767225599999&limit=1000"
+  ],
+  "funding_coverage_verified": true,
+  "timestamp_alignment_verified": true,
+  "rights_reviewed": true,
+  "contract_specs_reviewed": true,
+  "rights_scope": "Private research copy; raw and normalized data excluded from public source release. No redistribution license asserted.",
+  "contract_scope": "Linear USDT perpetual, current exchangeInfo corroboration only. Historical fees, margin, minimum order and fills are assumptions; not venue certification.",
+  "timestamp_method": "Actual funding milliseconds; matched nominal 8h bar OPEN, not close. Bar open is up to milliseconds stale; fills are hypothetical with slippage. Signal executes at least one later settlement.",
+  "assumptions": "Flat 1% maintenance plus 10bps close reserve, 10% initial margin, 10/5bps spot/perp fees, 2bps each fill; 0.001 base-unit common quantity step.",
+  "source_sha256": {
+    "P3_BTCUSDT_spot_2025_part1.json": "8a19e9d17090df9a66e55ac149e22ccead6c4824948a1d45d33d7bc2beb0b999",
+    "P3_BTCUSDT_spot_2025_part2.json": "a44361d73dc7729953a206354dff354afaee11c394203d0738cb922ac1db2882",
+    "P3_BTCUSDT_perp_2025.json": "f525a3f568b71f162de249ff5a4ef8d555deaa537b215ebf8412dd6c0405e58a",
+    "P3_BTCUSDT_mark_2025.json": "574c8d67256dd30e47935a56fba67ee9abfeb433c9ed7dac461b4d4fa665328e",
+    "P3_BTCUSDT_funding_2025_part1.json": "60420080d6f5896301a0b3d7574a80c43f46c2632ac5e1cee1a899f5c95e28fa",
+    "P3_BTCUSDT_funding_2025_part2.json": "46f6d99afb8233011b3ab22bb59b6778c46c6766566c78167af52b00aa4d2313",
+    "P3_ETHUSDT_spot_2025_part1.json": "5804080fb5cc7dac1b7eb48edad22088298e17ed882f61b3ddd8baaf4cbe75fc",
+    "P3_ETHUSDT_spot_2025_part2.json": "80fafbb9c852e562099a77e8cc7e318f68ee23e47be1ee81c190c6ace29ca3b6",
+    "P3_ETHUSDT_perp_2025.json": "ba7b8ab5319cac1f4ba4e48759c396dd3ed38bf1a0e6a22939dc719ab7c9f9ee",
+    "P3_ETHUSDT_mark_2025.json": "e94f3f25a45de39417f7434d7ecb39dba6792474fece7b9d2e156f5c73797acb",
+    "P3_ETHUSDT_funding_2025_part1.json": "02ca09a34ed463093e29a622139c801a24e08310666eb895ab326db364096495",
+    "P3_ETHUSDT_funding_2025_part2.json": "e2ddcd8db7d1edfcbc4ee810a079f53dd6d8271967e08673efe42a5866451dab"
+  },
+  "coverage": [
+    {
+      "symbol": "BTCUSDT",
+      "events": 1095,
+      "first": "2025-01-01T00:00:00.015000Z",
+      "last": "2025-12-31T16:00:00.001000Z",
+      "missing": 0,
+      "duplicates": 0,
+      "max_quote_age_ms": 16,
+      "negative_funding": 141,
+      "zero_funding": 0
+    },
+    {
+      "symbol": "ETHUSDT",
+      "events": 1095,
+      "first": "2025-01-01T00:00:00.015000Z",
+      "last": "2025-12-31T16:00:00.001000Z",
+      "missing": 0,
+      "duplicates": 0,
+      "max_quote_age_ms": 16,
+      "negative_funding": 177,
+      "zero_funding": 0
+    }
+  ],
+  "retrieved_at": "2026-11-24T11:23:56.182915+00:00"
+}

@@ -1,0 +1,28 @@
+{
+  "frozen_at": "2026-11-24T11:25:24.829615+00:00",
+  "config": {
+    "capital": 100000.0,
+    "spot_wallet_fraction": 0.65,
+    "allocation_fraction": 0.55,
+    "spot_fee_bps": 10.0,
+    "perp_fee_bps": 5.0,
+    "slippage_bps": 2.0,
+    "maintenance_rate": 0.01,
+    "close_reserve_bps": 10.0,
+    "funding_threshold": 5e-05,
+    "quantity_step": 0.001,
+    "initial_margin_rate": 0.1,
+    "financing_apr": 0.0
+  },
+  "scope": "Retrospective historical holdout; freeze before first strategy return inspection. No forward claim.",
+  "sha256": {
+    "carry/engine.py": "9620fa68e5610e8c5d982766696317553837bc1ae1559d19b2d765de871c160d",
+    "carry/market.py": "53886fc8714712ff5fdaa8a5f07abee604ce0da528c3c951edbccb7c72dc48cd",
+    "carry/study.py": "be06e4433b8febf03823b09654461438438a22ded1fc5ea9a196655ec716c67b",
+    "carry/run.py": "dadd788ada4bdb6f6f8d1fc0827bc86e11abd53c1113cdeb78a1b26a811d8480",
+    "data/market/ETHUSDT.csv": "ca7289b145d4dea9ef2d339cef957b170ed9619c64ddae39b6701a9fe797535b",
+    "data/market/BTCUSDT.csv": "4ddbdccedd4752cccab6a8758ae078a77d2b9951f4dc65b8ed69bbfefe69da5f",
+    "data/market/manifest.json": "ce225c09a8d04dfa4bbac3c50b8af866377f61731d3c9e82eb6f2beff8c439c7",
+    "docs/STUDY_PROTOCOL_V1.md": "47a40b99a31cd7c580e3bf71cd3129d150abe65045d9d9fdbda924d08a553721"
+  }
+}
