@@ -1,0 +1,34 @@
+name: Read-only paper observations
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '10 0,8,16 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: paper-state-v1
+  cancel-in-progress: false
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache/restore@v4
+        with:
+          path: paper/state
+          key: paper-state-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: paper-state-v1-
+      - name: Collect public quotes and update hypothetical account
+        run: python -m carry.paper
+      - uses: actions/cache/save@v4
+        with:
+          path: paper/state
+          key: paper-state-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hypothetical-paper-evidence
+          path: paper/state
+          retention-days: 90
