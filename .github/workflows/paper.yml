@@ -1,8 +1,8 @@
 name: Read-only paper observations
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '10 0,8,16 * * *'
+  # Schedule intentionally omitted: hosted-runner Binance request returned HTTP 451.
+  # Enable scheduled polling only after a permitted execution environment is verified.
 permissions:
   contents: read
 concurrency:
