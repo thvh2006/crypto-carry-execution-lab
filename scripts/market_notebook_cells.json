@@ -1,0 +1,18 @@
+[
+ ["01_contract_and_data_audit","Contract and audited 2025 market data",[
+  "import json\nfrom pathlib import Path\naudit=json.loads(Path('artifacts/market/data_audit.json').read_text())\nprint(json.dumps(audit['coverage'],indent=2))\nprint(audit['timestamp_method'])\nassert all(x['missing']==0 and x['duplicates']==0 and x['events']==1095 for x in audit['coverage'])",
+  "from carry.run import golden_case\nprint('Independent two-leg case:',golden_case())\nprint('Historical fees and margin tiers are assumptions. 8h bar-open fills are hypothetical.')"
+ ]],
+ ["02_two_leg_ledger_and_baselines","Two-leg accounting and market baselines",[
+  "import csv\nfrom pathlib import Path\nrows=list(csv.DictReader(Path('artifacts/market/summary.csv').open()))\nfor row in rows:\n    if row['partition']=='holdout' and row['policy'] in ('spot','continuous','threshold'):\n        print(row['symbol'],row['policy'],'net',round(float(row['net_pnl']),2),'fees',round(float(row['fees']),2))\nassert max(float(r['max_reconciliation_error']) for r in rows)<1e-6",
+  "import unittest\nsuite=unittest.defaultTestLoader.discover('tests')\nresult=unittest.TextTestRunner(verbosity=1).run(suite)\nassert result.wasSuccessful()\nprint('Settlement timing, two-leg costs, future-data changes, delay and paper initialization verified.')"
+ ]],
+ ["03_funding_forecasts_and_costs","Causal forecasts, net economics and uncertainty",[
+  "import csv\nfrom pathlib import Path\nrows=list(csv.DictReader(Path('artifacts/market/forecast_errors.csv').open()))\nfor r in rows:\n    if r['partition']=='holdout':print(r['symbol'],r['model'],'MAE bps',round(float(r['mae'])*10000,4),'n',r['n'])\nprint('Last rate, nine-period mean, ridge AR(1). Past-only rolling training; at least 24 events, at most 90.')",
+  "rows=list(csv.DictReader(Path('artifacts/market/paired_uncertainty.csv').open()))\nfor r in rows:\n    if r['partition']=='holdout':\n        print(r['symbol'],r['policy'],'minus',r['benchmark'],'net difference',round(float(r['paired_pnl_difference']),2),'95% observed-regime block interval',round(float(r['block_bootstrap_low']),2),round(float(r['block_bootstrap_high']),2))\nprint('Smoother forecasts lose less than the naive threshold but do not beat continuous carry. Error and economics are separate.')"
+ ]],
+ ["04_margin_and_execution_stress","Isolated margin, partial fills and failure modes",[
+  "from carry.engine import stress_case\nimport json\nresult=stress_case(spot_shock=.8,perp_shock=.8)\nprint(json.dumps(result,indent=2))\nassert result['equity_usdt']>99000 and result['margin_buffer_after_haircut']<0\nprint('Combined economic equity can survive while isolated collateral fails.')",
+  "import csv\nfrom pathlib import Path\nrows=list(csv.DictReader(Path('artifacts/market/summary.csv').open()))\nfor r in rows:\n    if r['partition']=='holdout' and r['policy']=='continuous':\n        print(r['symbol'],'minimum sampled buffer',r['minimum_sampled_margin_buffer'],'bar-high proxy',r['minimum_bar_high_margin_proxy'])\nprint('A positive OHLC proxy does not certify intrabar survival or venue-exact liquidation. Forward paper performance is unavailable.')"
+ ]]
+]
