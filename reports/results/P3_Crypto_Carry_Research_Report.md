@@ -218,6 +218,8 @@ USDT equals USD in the base replay. The depeg scenario translates economic equit
 
 The paper module is strictly read-only: public prices/funding in, hypothetical targets and receipts out. It contains no authenticated or order API. The first snapshot starts flat and cannot claim earlier funding. Later runs settle new funding on existing paper holdings before executing the prior target. A state lock, duplicate-time guard, funding-gap check, quote sanity check and event-level reconciliation fail closed.
 
+Operational check: GitHub CI passed. The hosted paper run returned HTTP 451 from Binance futures bookTicker; its schedule was removed and no successful paper state is claimed. The public dashboard and CSV export were checked in Chrome.
+
 Paper polling is coarser than live trading. Quotes are midpoint references with modeled slippage; funding is actually observed but fills are hypothetical. A changed cadence, stale quote, incomplete page or failed network request stops the update. Scheduled execution depends on endpoint access from the chosen runner. A successful workflow is operational evidence, never proof of a future return.
 
 |Reproduction|Command / artifact|
