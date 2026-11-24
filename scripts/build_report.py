@@ -1,11 +1,12 @@
 """Create the evidence report and a Vietnamese decision memo from run artifacts."""
 import csv
+import html
 import json
 from pathlib import Path
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY, TA_CENTER
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Flowable
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -15,57 +16,76 @@ DATA=ROOT/'artifacts/market'
 def read(name):return list(csv.DictReader((DATA/(name+'.csv')).open()))
 summary=read('summary');errors=read('forecast_errors');cost=read('cost_sensitivity');delay=read('delay_sensitivity');intervals=read('paired_uncertainty');ledger=read('ledger')
 receipt=json.loads((DATA/'receipt.json').read_text()); manifest=json.loads((ROOT/'data/market/manifest.json').read_text())
-font='/System/Library/Fonts/Supplemental/Arial.ttf';bold='/System/Library/Fonts/Supplemental/Arial Bold.ttf'
-pdfmetrics.registerFont(TTFont('Arial',font));pdfmetrics.registerFont(TTFont('ArialBold',bold))
+font='/System/Library/Fonts/Supplemental/Times New Roman.ttf'
+bold='/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf'
+pdfmetrics.registerFont(TTFont('TimesNR',font));pdfmetrics.registerFont(TTFont('TimesNRBold',bold))
+for name,file in [('TimesNRItalic','Times New Roman Italic.ttf'),('TimesNRBoldItalic','Times New Roman Bold Italic.ttf')]:
+    pdfmetrics.registerFont(TTFont(name,'/System/Library/Fonts/Supplemental/'+file))
+pdfmetrics.registerFontFamily('TimesNR',normal='TimesNR',bold='TimesNRBold',italic='TimesNRItalic',boldItalic='TimesNRBoldItalic')
 styles=getSampleStyleSheet()
-styles.add(ParagraphStyle(name='Body',fontName='Arial',fontSize=10,leading=15,spaceAfter=10))
-styles.add(ParagraphStyle(name='Title2',fontName='ArialBold',fontSize=24,leading=29,spaceAfter=16,textColor=colors.HexColor('#173e38')))
-styles.add(ParagraphStyle(name='Small2',fontName='Arial',fontSize=8,leading=11))
-styles.add(ParagraphStyle(name='Sub2',fontName='ArialBold',fontSize=13,leading=17,spaceAfter=10))
-story=[];markdown=[]
-def p(text):story.append(Paragraph(text,styles['Body']));markdown.append(text.replace('<b>','**').replace('</b>','**'))
+styles.add(ParagraphStyle(name='Body',fontName='TimesNR',fontSize=12,leading=18,spaceAfter=7,alignment=TA_JUSTIFY,textColor=colors.black))
+styles.add(ParagraphStyle(name='Title2',fontName='TimesNRBold',fontSize=12,leading=18,spaceBefore=14,spaceAfter=7,keepWithNext=True,textColor=colors.black))
+styles.add(ParagraphStyle(name='PaperTitle',parent=styles['Title2'],alignment=TA_CENTER,spaceBefore=0,spaceAfter=12))
+styles.add(ParagraphStyle(name='Small2',fontName='TimesNR',fontSize=12,leading=15,textColor=colors.black))
+styles.add(ParagraphStyle(name='Caption',fontName='TimesNR',fontSize=12,leading=15,spaceBefore=6,spaceAfter=6,keepWithNext=True))
+story=[];markdown=[];table_number=0
+TABLE_CAPTIONS=['Net P&L by holdout sleeve and policy.','Accounting identities and treatment of cash flows.','Coverage audit of the 2025 market sample.','Temporal research partitions.','Development and validation net P&L (USDT).','Historical holdout attribution (USDT).','Forecast error and matched strategy economics.','Cost and execution-delay sensitivity (USDT).','Paired P&L differences and block-bootstrap intervals (USDT).','Isolated-margin diagnostics (USDT).','Reproduction commands and evidence artifacts.']
+def p(text):story.append(Paragraph(text.replace('&','&amp;'),styles['Body']));markdown.append(text.replace('<b>','**').replace('</b>','**'))
 def page(title):
-    if story:story.append(PageBreak())
-    story.extend([Paragraph('P3 / CRYPTO CARRY &amp; EXECUTION LAB',styles['Small2']),Spacer(1,12),Paragraph(title,styles['Title2'])]);markdown.append('\n# '+title+'\n')
+    if not story:
+        story.append(Paragraph(title,styles['PaperTitle']))
+        story.append(Paragraph('Crypto Carry and Execution Lab | Research report | 24 November 2026',ParagraphStyle(name='Meta',parent=styles['Body'],alignment=TA_CENTER)))
+        story.append(Paragraph('Abstract',styles['Title2']))
+    else:
+        import re
+        title=re.sub(r'^0([1-9]) / ',r'\1. ',title)
+        story.append(Paragraph(title,styles['Title2']))
+    markdown.append('\n# '+title+'\n')
 def table(headers,rows,widths=None):
-    values=[[Paragraph(str(x),styles['Small2']) for x in r] for r in [headers]+rows]
-    t=Table(values,colWidths=widths,repeatRows=1,hAlign='LEFT');t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#173e38')),('TEXTCOLOR',(0,0),(-1,0),colors.white),('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),8),('TOPPADDING',(0,0),(-1,-1),8),('LINEBELOW',(0,0),(-1,-1),.4,colors.HexColor('#ccd6d2'))]))
-    # Paragraph colors are explicit for header text.
-    for cell in values[0]:cell.style=ParagraphStyle(name='Header',parent=styles['Small2'],textColor=colors.white,fontName='ArialBold')
-    story.extend([t,Spacer(1,12)]);markdown.extend(['|'+'|'.join(headers)+'|','|'+'|'.join(['---']*len(headers))+'|']+['|'+'|'.join(map(str,r))+'|' for r in rows])
+    global table_number
+    table_number+=1
+    caption=f'Table {table_number}. '+TABLE_CAPTIONS[table_number-1]
+    story.append(Paragraph(html.escape(caption),styles['Caption']));markdown.append(caption)
+    values=[[Paragraph(('<b>'+html.escape(str(x))+'</b>') if i==0 else html.escape(str(x)),styles['Small2']) for x in r] for i,r in enumerate([headers]+rows)]
+    if widths:widths=[w*451/480 for w in widths]
+    t=Table(values,colWidths=widths,repeatRows=1,hAlign='LEFT')
+    t.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),6),('TOPPADDING',(0,0),(-1,-1),6),('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),('LINEABOVE',(0,0),(-1,0),.7,colors.black),('LINEBELOW',(0,0),(-1,0),.5,colors.black),('LINEBELOW',(0,-1),(-1,-1),.7,colors.black)]))
+    story.extend([t,Spacer(1,6)]);markdown.extend(['|'+'|'.join(headers)+'|','|'+'|'.join(['---']*len(headers))+'|']+['|'+'|'.join(map(str,r))+'|' for r in rows])
 def num(x):return f'{float(x):,.2f}'
 def pct(x):return f'{100*float(x):.2f}%'
 def find(symbol,policy,part='holdout'):return next(r for r in summary if r['symbol']==symbol and r['policy']==policy and r['partition']==part)
 class Lines(Flowable):
-    def __init__(self,symbol,part='holdout'):Flowable.__init__(self);self.width=480;self.height=150;self.symbol=symbol;self.part=part
+    def __init__(self,symbol,part='holdout'):Flowable.__init__(self);self.width=451;self.height=150;self.symbol=symbol;self.part=part
     def draw(self):
-        c=self.canv; names=['spot','continuous','threshold'];cols=['#526779','#137c66','#d97a37']
+        c=self.canv; c.scale(451/480,451/480); names=['spot','continuous','threshold'];cols=['#666666','#000000','#333333']
         data=[[r for r in ledger if r['symbol']==self.symbol and r['partition']==self.part and r['policy']==name] for name in names]
         vals=[float(r['net_pnl']) for rows in data for r in rows];lo=min(vals+[0]);hi=max(vals+[0]);span=hi-lo or 1
-        c.setFont('Arial',8);c.setFillColor(colors.HexColor('#173e38'));c.drawString(0,142,self.symbol+' | Net P&L, USDT');c.drawString(0,125,num(hi));c.drawString(0,20,num(lo))
+        c.setFont('TimesNR',12);c.setFillColor(colors.black);c.drawString(0,142,('Figure 1. ' if self.symbol=='BTCUSDT' else 'Figure 2. ')+self.symbol+' net P&L (USDT).');c.drawString(0,125,num(hi));c.drawString(0,20,num(lo))
         for name,color,rows in zip(names,cols,data):
             line=c.beginPath()
             for i,r in enumerate(rows):
                 x=60+i*410/(len(rows)-1);y=22+(float(r['net_pnl'])-lo)*100/span
                 if i:line.lineTo(x,y)
                 else:line.moveTo(x,y)
-            c.setStrokeColor(colors.HexColor(color));c.drawPath(line);c.setFillColor(colors.HexColor(color));c.drawString(60+names.index(name)*135,4,name)
+            c.setStrokeColor(colors.HexColor(color));c.setDash([[],[5,2],[1,2]][names.index(name)]);c.drawPath(line);c.setDash([]);c.setFillColor(colors.HexColor(color));c.drawString(60+names.index(name)*135,4,name)
 
-page('Funding carry after the friction bill')
-p('<b>Retrospective market evidence / 24 November 2026.</b> Does long spot and short a linear perpetual produce useful net economics once funding reversals, both legs, turnover and separate collateral are counted? The answer in this fixed 2025 sample depends strongly on how often the position is switched.')
+page('Funding Carry after Transaction Costs: A BTC and ETH Study')
+p('Does long spot and short a linear perpetual produce useful net economics once funding reversals, both legs, turnover and separate collateral are counted? The answer in this fixed 2025 sample depends strongly on how often the position is switched.')
 p('Continuous carry made a small positive net result in the October-December holdout. The last-rate threshold repeatedly paid to enter and exit and lost money. Smoother forecasts reduced the loss relative to that threshold, but neither forecast strategy beat continuous carry in this holdout. This is a useful negative result, not a deployable return claim.')
+p('<b>Keywords:</b> cryptocurrency; cash-and-carry; funding rates; transaction costs; isolated margin.')
+story.append(Paragraph('Research overview',styles['Title2']))
 table(['Holdout sleeve','Continuous carry','Last-rate threshold'],[[s,num(find(s,'continuous')['net_pnl']),num(find(s,'threshold')['net_pnl'])] for s in ('BTCUSDT','ETHUSDT')],[150,165,165])
 p('Each asset/policy starts with a separate 100,000 USDT sleeve. Results are hypothetical bar-based executions after fees and slippage. They exclude live fills, custody/venue default, tax, tier-exact liquidation and a forward paper track record. Do not interpret the two sleeves as a combined 100,000 USDT portfolio.')
 p('The package contains the audited data contract, frozen study receipt, all three research partitions, six policy variants, forecast errors, cost/delay sensitivities, paired uncertainty, independent Excel mechanics and 18 automated tests. Run identifier: '+receipt['run_id']+'.')
 
 page('01 / Contract mechanics and capital')
-p('Universe: Binance BTCUSDT and ETHUSDT spot plus USDT-margined linear perpetuals. Perpetual quantity is signed base units, with short quantities negative. Positive funding pays a short position. Funding cash at an event is -q_perp × settlement mark × settled rate. New positions entered after settlement receive no cash for that event.')
-p('The 100,000 USDT capital denominator includes 65,000 spot-wallet cash and 35,000 isolated derivatives collateral. Desired matched spot exposure is 55% of initial capital. Quantity is fixed while active and recalculated on re-entry. The market study uses a conservative common 0.001 base-unit quantity step. Current exchangeInfo corroborates the linear USDT instruments and perpetual step; it is not historical filter evidence.')
+p('Universe: Binance BTCUSDT and ETHUSDT spot plus USDT-margined linear perpetuals. Perpetual quantity is signed base units, with short quantities negative. Positive funding pays a short position [2]. Funding cash at an event is -q_perp × settlement mark × settled rate. New positions entered after settlement receive no cash for that event.')
+p('The 100,000 USDT capital denominator includes 65,000 spot-wallet cash and 35,000 isolated derivatives collateral. Desired matched spot exposure is 55% of initial capital. Quantity is fixed while active and recalculated on re-entry. The market study uses a conservative common 0.001 base-unit quantity step. Current exchangeInfo corroborates the linear USDT instruments and perpetual step; it is not historical filter evidence [5].')
 table(['Accounting identity','Treatment'],[['Equity','Spot cash + spot market value + perp collateral + unrealized perp P&L'],['Net P&L','Spot P&L + perp P&L + funding - commissions - financing'],['Slippage','Embedded once in each leg’s P&L; shown separately as a diagnostic'],['Collateral transfers','Internal allocation, never profit'],['Financing','0% base assumption for a fully cash-funded sleeve; opportunity cost excluded']],[145,335])
 p('The independent workbook case uses 275 filled spot units against 550 short perp units, spot price 100 and perp close 105, with three positive/negative settlements. The default result is -2,860.825 USDT, funding +0.55 and residual delta -275 units. Four commissions are included. Workbook formulas reconcile to the Python Account case; changing the spot-fill input changes the result.')
 
 page('02 / Source provenance and coverage')
-p('Official public API responses were read in Chrome and saved as plain UTF-8 JSON after shell DNS and several archive downloads failed. Raw records are preserved in the private package with SHA-256 receipts. No account endpoint, API key or order endpoint was used. An independently downloaded January BTC funding archive was also available.')
+p('Official public API responses were read in Chrome and saved as plain UTF-8 JSON after shell DNS and several archive downloads failed. Raw records are preserved in the private package with SHA-256 receipts. No account endpoint, API key or order endpoint was used. An independently downloaded January BTC funding archive was also available [1, 3, 4].')
 table(['Coverage 2025','BTCUSDT','ETHUSDT'],[['Funding events','1,095','1,095'],['Spot / perp / mark 8h bars','1,095 each','1,095 each'],['Missing or duplicate nominal events','0','0'],['Negative funding events','141','177'],['Maximum event offset / quote age','16 ms','16 ms']],[240,120,120])
 p('All 93 January BTC funding timestamps and rates match the same-provider public archive exactly. This checks schema and ingestion, not independent exchange truth. Funding timestamps are actual event milliseconds. Price references are the nominal 8-hour bar OPEN; close, high and low are never used as executable prices or signal features. A reference can precede funding availability by up to 16 ms, so it remains an execution approximation.')
 p('The bar-high mark series is used only as an ex-post isolated-margin diagnostic. It is never a tradable quote or predictor. The archive microsecond convention for 2025 spot files is not applied to API kline milliseconds. No missing funding is filled with zero. A changed cadence, duplicate or incomplete coverage stops normalization.')
@@ -114,11 +134,26 @@ p('Operational check: GitHub CI passed. The hosted paper run returned HTTP 451 f
 p('Paper polling is coarser than live trading. Quotes are midpoint references with modeled slippage; funding is actually observed but fills are hypothetical. A changed cadence, stale quote, incomplete page or failed network request stops the update. Scheduled execution depends on endpoint access from the chosen runner. A successful workflow is operational evidence, never proof of a future return.')
 table(['Reproduction','Command / artifact'],[['Verify engine','python3 -m unittest discover -s tests -v'],['Synthetic replay','python3 -m carry.run demo'],['Normalize preserved snapshots','python3 -m carry.market'],['Frozen market study','python3 -m carry.study'],['Read-only paper observation','python3 -m carry.paper'],['Receipts','artifacts/market/freeze.json and receipt.json']],[160,320])
 p('<b>Decision:</b> retain continuous carry as the research benchmark and reject this naive threshold as an execution policy at the assumed fee schedule. Do not deploy from these results. The next study should price switching decisions against expected holding duration and friction, acquire execution-level observations and historical margin tiers, and accumulate a genuine forward paper record without recycling the consumed holdout.')
-p('Primary sources: Binance public-data repository (github.com/binance/binance-public-data); Binance funding FAQ (binance.com/en/support/faq/detail/360033525031); official data-api.binance.vision/api/v3/klines; fapi.binance.com/fapi/v1/fundingRate, /klines, /markPriceKlines and /exchangeInfo. Snapshot URL parameters and individual hashes are in the private manifest. Report generated from run '+receipt['run_id']+'.')
+story.append(PageBreak())
+story.append(Paragraph('References',styles['Title2']))
+markdown.append('\n# References\n')
+references=[
+ '[1] Binance. (n.d.). Binance Public Data [Data repository]. https://github.com/binance/binance-public-data (accessed 24 November 2026).',
+ '[2] Binance. (n.d.). Funding rates for perpetual futures. https://www.binance.com/en/support/faq/detail/360033525031 (accessed 24 November 2026).',
+ '[3] Binance. (2026). Spot market-data API: Historical klines. https://data-api.binance.vision/api/v3/klines. BTCUSDT and ETHUSDT, 2025 observations; retrieved 24 November 2026. Exact parameters are retained in the study manifest.',
+ '[4] Binance. (2026). USD-M futures market-data API: Funding history, contract klines and mark-price klines. https://fapi.binance.com/fapi/v1/fundingRate ; https://fapi.binance.com/fapi/v1/klines ; https://fapi.binance.com/fapi/v1/markPriceKlines. Retrieved 24 November 2026.',
+ '[5] Binance. (2026). USD-M futures exchange information [Contract specification snapshot]. https://fapi.binance.com/fapi/v1/exchangeInfo. Retrieved 24 November 2026. Current specifications do not establish historical fee or maintenance tiers.'
+]
+reference_style=ParagraphStyle(name='Reference',parent=styles['Body'],alignment=TA_LEFT,leftIndent=18,firstLineIndent=-18,spaceAfter=12)
+for reference in references:
+    story.append(Paragraph(html.escape(reference),reference_style));markdown.append(reference)
+
 
 def footer(c,doc):
-    c.setStrokeColor(colors.HexColor('#ccd6d2'));c.line(48,45,547,45);c.setFont('Arial',8);c.setFillColor(colors.HexColor('#5c716b'));c.drawString(48,31,'Retrospective research | Hypothetical execution | 24 Nov 2026');c.drawRightString(547,31,str(doc.page))
-doc=SimpleDocTemplate(str(OUT/'P3_Crypto_Carry_Research_Report.pdf'),pagesize=(595,842),rightMargin=55,leftMargin=55,topMargin=48,bottomMargin=60)
+    c.setFont('TimesNR',10);c.setFillColor(colors.black);c.drawCentredString(297.5,40,str(doc.page))
+doc=SimpleDocTemplate(str(OUT/'P3_Crypto_Carry_Research_Report.pdf'),pagesize=(595,842),rightMargin=72,leftMargin=72,topMargin=72,bottomMargin=72)
+doc.title='Funding Carry after Transaction Costs: A BTC and ETH Study'
+doc.author='Crypto Carry and Execution Lab'
 doc.build(story,onFirstPage=footer,onLaterPages=footer)
 (OUT/'P3_Crypto_Carry_Research_Report.md').write_text('\n\n'.join(markdown))
 memo=f'''# P3 - Memo kết quả và quyết định
