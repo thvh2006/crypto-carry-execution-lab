@@ -21,3 +21,21 @@ class PaperTests(unittest.TestCase):
         funds=[dict(fundingTime=900000,fundingRate='.001',markPrice='100')]
         with self.assertRaisesRegex(ValueError,'Duplicate'):
             step(step(None,row,funds),row,funds)
+
+    def test_nonfinite_or_unavailable_input_rejected(self):
+        row=dict(timestamp='2026-11-24T00:00:00Z',symbol='BTCUSDT',spot=100,perp=100,mark=100,funding=.001,observed_ms=1000000)
+        funds=[dict(fundingTime=900000,fundingRate='.001',markPrice='100')]
+        with self.assertRaisesRegex(ValueError,'Non-finite'):
+            step(None,dict(row,mark=float('nan')),funds)
+        with self.assertRaisesRegex(ValueError,'unavailable'):
+            step(None,row,[dict(funds[0],fundingTime=1100000)])
+
+    def test_paper_intents_and_fills_are_retained(self):
+        row=dict(timestamp='2026-11-24T00:00:00Z',symbol='BTCUSDT',spot=100,perp=100,mark=100,funding=.001,observed_ms=1000000)
+        funds=[dict(fundingTime=900000,fundingRate='.001',markPrice='100')]
+        first=step(None,row,funds)
+        second=step(first,dict(row,observed_ms=1400000),funds)
+        self.assertEqual(second['started_at_ms'],first['started_at_ms'])
+        self.assertEqual(len(second['simulated_fills']),2)
+        self.assertGreater(second['intended_before'],0)
+        self.assertFalse(second['receipt']['initializing'])
