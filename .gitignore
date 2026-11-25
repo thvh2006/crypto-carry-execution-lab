@@ -6,3 +6,7 @@ data/market/
 .DS_Store
 data/raw/
 ~$*
+data/acquired/
+data/candidate/
+artifacts/reproduction/
+paper/state/
