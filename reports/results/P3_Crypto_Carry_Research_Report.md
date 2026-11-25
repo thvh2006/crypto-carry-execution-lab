@@ -20,7 +20,17 @@ Table 1. Net P&L by holdout sleeve and policy.
 
 Each asset/policy starts with a separate 100,000 USDT sleeve. Results are hypothetical bar-based executions after fees and slippage. They exclude live fills, custody/venue default, tax, tier-exact liquidation and a forward paper track record. Do not interpret the two sleeves as a combined 100,000 USDT portfolio.
 
-The package contains the audited data contract, frozen study receipt, all three research partitions, six policy variants, forecast errors, cost/delay sensitivities, paired uncertainty, independent Excel mechanics and 18 automated tests. Run identifier: eed008040d6c6d18.
+The package contains the audited data contract, frozen study receipt, all three research partitions, six policy variants, forecast errors, cost/delay sensitivities, paired uncertainty, independent Excel mechanics and 22 automated tests. Run identifier: eed008040d6c6d18.
+
+
+# Research context and contribution
+
+
+Schmeling, Schrimpf and Todorov [6] document variation in crypto futures basis and relate carry to demand for leveraged exposure and limited arbitrage capital. Their analysis also emphasizes margin and liquidation risk. Their dated-futures setting should not be treated as a promise of the same return for a perpetual funding strategy.
+
+Ackerer, Hugonnier and Jermann [7] study no-arbitrage pricing of perpetual contracts and the role of periodic funding in anchoring prices. That theoretical connection does not establish that a historical last-rate trading rule survives transaction costs.
+
+This project addresses a narrower empirical question: under a disclosed single-venue, cash-funded, sampled-execution design, how much of observed carry remains after both legs, switching and collateral constraints? It does not replicate either paper, estimate a structural convenience yield, or infer a guaranteed annual carry return. The contribution is an auditable accounting and decision comparison with negative findings retained.
 
 
 # 1. Contract mechanics and capital
@@ -77,10 +87,30 @@ The bar-high mark series is used only as an ex-post isolated-margin diagnostic. 
 Access is public, but no unrestricted market-data redistribution license is asserted. Raw and normalized snapshots stay out of the public source export. The private delivery preserves them for reproducibility. Historical maintenance tiers, fee tier, minimum order filters and depth are unavailable and explicitly remain assumptions.
 
 
+# 2.1. Post-study funding and basis diagnostics
+
+
+The following descriptive analysis was added after the historical holdout was consumed. It explains market conditions and switching costs; it does not select a new threshold, model or sample. Rates are basis points per observed settlement. Basis is traded perpetual / spot minus one, separate from the settlement mark.
+
+Table 4. Descriptive funding persistence and traded-price basis, full 2025 sample.
+
+|Asset|Negative funding|Longest negative run|Lag-1 funding correlation|Median basis (bps)|
+
+|---|---|---|---|---|
+
+|BTCUSDT|12.88%|10|0.553|-4.45|
+
+|ETHUSDT|16.16%|5|0.530|-4.51|
+
+BTC funding is negative at approximately 12.9% of observed settlements and ETH at 16.2%. Positive average funding therefore does not remove payment reversals. Lag-one funding correlation is around 0.55 for BTC and 0.53 for ETH; serial dependence motivates testing smoother forecasts but does not establish an investable edge. Contemporaneous funding/basis correlations are descriptive, not causal predictors.
+
+The monthly summaries preserve all events rather than removing difficult regimes. Full quantiles, histogram counts and negative-run diagnostics are retained in artifacts/review and the first executed notebook. Bar sampling and timestamp offsets limit interpretation of the basis measurements.
+
+
 # 3. Frozen temporal design
 
 
-Table 4. Temporal research partitions.
+Table 5. Temporal research partitions.
 
 |Partition|Dates UTC|Purpose / events per asset|
 
@@ -106,7 +136,7 @@ The fixed trial budget is one last-rate model, one trailing-nine mean and one ri
 
 Unhedged spot measures directional exposure at the same 55% allocation. Continuous carry holds equal spot and short-perpetual base quantities. Threshold carry is active when the last settled funding rate is at least 0.00005 (0.005% per settlement), and acts only at the later observation. There is no hysteresis or minimum holding period in this deliberately simple baseline.
 
-Table 5. Development and validation net P&L (USDT).
+Table 6. Development and validation net P&L (USDT).
 
 |Asset / partition|Spot net|Carry net|Threshold net|
 
@@ -128,7 +158,7 @@ Cash constraints, quantity rounding and initial-margin rejection can leave a res
 # 5. Net holdout attribution
 
 
-Table 6. Historical holdout attribution (USDT).
+Table 7. Historical holdout attribution (USDT).
 
 |Sleeve / policy|Net P&L|Funding|Fees|Max DD|
 
@@ -149,10 +179,34 @@ Table 6. Historical holdout attribution (USDT).
 Values are USDT except drawdown. Slippage is already inside leg P&L. Full spot/perp attribution, residual exposure, fills and sampled margin are in summary.csv and ledger.csv. A positive carry result is small relative to the 100,000 denominator; gross funding alone exaggerates its economics.
 
 
+# 5.1. Turnover and the gross-to-net mechanism
+
+
+Table 8. Holdout execution intensity; absolute traded notional on both legs divided by 100,000 USDT.
+
+|Asset / policy|Fill count|Two-leg turnover / capital|Fees (USDT)|
+
+|---|---|---|---|
+
+|BTCUSDT / continuous|4|1.95|146.38|
+
+|BTCUSDT / threshold|164|89.76|6,729.98|
+
+|BTCUSDT / forecast_rolling_mean|32|17.25|1,291.32|
+
+|ETHUSDT / continuous|4|1.89|141.91|
+
+|ETHUSDT / threshold|192|103.83|7,752.96|
+
+|ETHUSDT / forecast_rolling_mean|49|24.48|1,798.96|
+
+ETH continuous carry uses four modeled fills, whereas the naive threshold uses 192. Two-leg turnover rises from about 1.89 times capital to 103.83 times. Funding receipts are lower for the switching policy while its commission bill rises sharply. The mean forecast reduces switching intensity, explaining part of its improvement over the naive rule. This is an execution-cost mechanism, not proof that forecast skill produces alpha.
+
+
 # 6. Forecast skill versus strategy value
 
 
-Table 7. Forecast error and matched strategy economics.
+Table 9. Forecast error and matched strategy economics.
 
 |Asset / model|Holdout MAE, bps|Matched net P&L|
 
@@ -180,7 +234,7 @@ The matched forecasts remain negative after assumed costs in both holdout sleeve
 # 7. Friction and uncertainty
 
 
-Table 8. Cost and execution-delay sensitivity (USDT).
+Table 10. Cost and execution-delay sensitivity (USDT).
 
 |Asset / policy|Cost ×1|Cost ×2|Cost ×3|Delay 3 events|
 
@@ -196,7 +250,7 @@ Table 8. Cost and execution-delay sensitivity (USDT).
 
 Cost multiples apply to both leg commissions and adverse slippage. Delay sensitivity is separate, at base costs, and changes the first eligible execution observation. The small continuous-carry profit has limited room for larger friction or opportunity cost. Base fees are assumptions, not a promise of the user’s exchange tier.
 
-Table 9. Paired P&L differences and block-bootstrap intervals (USDT).
+Table 11. Paired P&L differences and block-bootstrap intervals (USDT).
 
 |Threshold minus continuous|Observed difference|95% block interval|
 
@@ -212,7 +266,7 @@ Uncertainty uses paired daily P&L differences, seven-day moving blocks, 2,000 re
 # 8. Margin is a separate survival problem
 
 
-Table 10. Isolated-margin diagnostics (USDT).
+Table 12. Isolated-margin diagnostics (USDT).
 
 |Holdout policy|Minimum sampled buffer|Minimum 8h-high proxy|
 
@@ -240,11 +294,13 @@ USDT equals USD in the base replay. The depeg scenario translates economic equit
 
 The paper module is strictly read-only: public prices/funding in, hypothetical targets and receipts out. It contains no authenticated or order API. The first snapshot starts flat and cannot claim earlier funding. Later runs settle new funding on existing paper holdings before executing the prior target. A state lock, duplicate-time guard, funding-gap check, quote sanity check and event-level reconciliation fail closed.
 
+Release 0.3 preserves the original economic source and outcomes. Python 3.9.6 reproduced all seven CSV outputs byte-for-byte. A separate Python 3.12 tolerance check found identical trading outcomes, with only forecast-error summary rounding differing at approximately 6.8e-21. The original freeze is not reset; new receipts record the reproduction mode and environment.
+
 Operational check: GitHub CI passed. The hosted paper run returned HTTP 451 from Binance futures bookTicker; its schedule was removed and no successful paper state is claimed. The public dashboard and CSV export were checked in Chrome.
 
 Paper polling is coarser than live trading. Quotes are midpoint references with modeled slippage; funding is actually observed but fills are hypothetical. A changed cadence, stale quote, incomplete page or failed network request stops the update. Scheduled execution depends on endpoint access from the chosen runner. A successful workflow is operational evidence, never proof of a future return.
 
-Table 11. Reproduction commands and evidence artifacts.
+Table 13. Reproduction commands and evidence artifacts.
 
 |Reproduction|Command / artifact|
 
@@ -256,7 +312,7 @@ Table 11. Reproduction commands and evidence artifacts.
 
 |Normalize preserved snapshots|python3 -m carry.market|
 
-|Frozen market study|python3 -m carry.study|
+|Frozen study reproduction|python3 -m carry.reproduce|
 
 |Read-only paper observation|python3 -m carry.paper|
 
@@ -277,3 +333,7 @@ Table 11. Reproduction commands and evidence artifacts.
 [4] Binance. (2026). USD-M futures market-data API: Funding history, contract klines and mark-price klines. https://fapi.binance.com/fapi/v1/fundingRate ; https://fapi.binance.com/fapi/v1/klines ; https://fapi.binance.com/fapi/v1/markPriceKlines. Retrieved 24 November 2026.
 
 [5] Binance. (2026). USD-M futures exchange information [Contract specification snapshot]. https://fapi.binance.com/fapi/v1/exchangeInfo. Retrieved 24 November 2026. Current specifications do not establish historical fee or maintenance tiers.
+
+[6] Schmeling, M., Schrimpf, A., & Todorov, K. (2023). Crypto carry. BIS Working Papers No. 1087, April 2023 version. https://www.bis.org/publications/working-paper-1087-crypto-carry.pdf (accessed 25 November 2026).
+
+[7] Ackerer, D., Hugonnier, J., & Jermann, U. (2024). Perpetual Futures Pricing. arXiv:2310.11771v2, revised 4 September 2024. https://arxiv.org/abs/2310.11771v2 (accessed 25 November 2026).

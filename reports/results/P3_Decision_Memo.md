@@ -25,7 +25,7 @@ Frequent switching makes the threshold policy's commissions exceed its funding r
 
 - **Coverage:** 1,095 funding events and 1,095 bars for each spot, perpetual and mark stream per asset in 2025, with no missing or duplicate nominal events.
 - **Ingestion cross-check:** All 93 January BTC funding timestamps and rates match between the public archive and API. Both are from the same provider, so this is not independent confirmation of exchange truth.
-- **Accounting:** 18 tests and 13,140 event-ledger rows across six policy variants, three temporal partitions and two assets. Maximum reconciliation residual is below 1e-9 USDT.
+- **Accounting:** 22 tests and 13,140 event-ledger rows across six policy variants, three temporal partitions and two assets. Maximum reconciliation residual is below 1e-9 USDT.
 - **Research controls:** Written protocol and frozen source/input/configuration hashes before the first strategy-return inspection; chronological development, validation and historical holdout partitions; paired seven-day block-bootstrap intervals; cost multiples of 1, 2 and 3; execution delays of 1, 2 and 3 observations.
 - **Independent review:** Formula-driven workbook with a Python golden-case reconciliation, executed notebooks and a public dashboard retaining negative results.
 
@@ -34,6 +34,10 @@ Frequent switching makes the threshold policy's commissions exceed its funding r
 Executable references are eight-hour bar opens matched to actual funding timestamps, with an offset of up to 16 ms. Fills, fee tiers and flat maintenance rates are assumptions. The bar-high margin proxy does not certify intraperiod liquidation safety. P&L is denominated in USDT, not guaranteed USD value. Historical margin tiers, order-book depth, execution capacity and a forward track record remain unverified.
 
 The paper collector reads public data and records hypothetical positions without API keys or order endpoints. Its hosted GitHub run returned **HTTP 451** from Binance futures. Automatic scheduling was removed; no successful forward paper state or performance is claimed. The failure is retained as operational evidence rather than replaced with assumed data.
+
+## Release 0.3 review improvements
+
+The original study outcomes are unchanged. Four executed notebooks now include rich diagnostic tables/figures, funding/basis regimes and turnover analysis. Excel adds historical sleeve selectors, a full derived account source, a native two-variable fee/slippage Data Table and a formula-driven cash/collateral scenario. The dashboard compares partitions, all policy variants, forecasts and archived cost runs. Exact reproduction is isolated from the consumed study and separately labeled across Python versions.
 
 ## Next research gate
 
