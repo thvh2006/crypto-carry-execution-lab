@@ -1,41 +1,46 @@
-# Mechanics and implementation
+# Research method
 
-## Contract and units
+## Scope and frozen evidence
 
-The engine models a USDT-settled linear perpetual. Quantity is base-asset exposure after applying the contract multiplier. One unit of BTCUSDT exposure means one BTC. Inverse contracts require a different engine. All prices are USDT per base unit. Funding is a decimal at the settlement timestamp. USDT equals USD in the base replay. A depeg scenario separately translates total equity into USD.
+BTCUSDT and ETHUSDT spot plus USDT-margined linear perpetuals, Binance, calendar 2025. Each asset/policy/partition uses a separate 100,000 USDT sleeve. Development is January-June, validation July-September and historical holdout October-December. Partitions start flat and close at the final observation. They are separate experiments, not a compounded full-year portfolio.
 
-Long spot quantity is positive. Short perpetual quantity is negative. Positive funding produces cash `-perp_quantity × settlement_mark × rate`. Perpetual unrealized P&L is `quantity × (mark − average_entry)`. Closing part of a short realizes `closed_quantity × (average_entry − execution_price)`. Increasing a short updates its weighted average entry. The algorithm supports a short held or closed toward zero.
+The original run is `eed008040d6c6d18`. Its freeze, protocol and CSV results remain unchanged. Release 0.3 adds explanatory diagnostics and fixes reproduction infrastructure after holdout consumption. Those additions are not a new out-of-sample test. Original engine/adapter/study/forecast source is preserved under `artifacts/market/frozen_source/carry/` and verified against the original freeze before reproduction.
 
-Equity equals spot cash plus spot market value plus derivative collateral plus perpetual unrealized P&L. The profit bridge equals realized and unrealized spot P&L plus perpetual P&L plus funding less commissions and financing. Execution slippage is already embedded in leg P&L. Its separate diagnostic must never be deducted again.
+## Units and accounting
 
-## Information and event order
+Quantity is base-asset exposure; a perp short is negative. Prices are USDT per base unit. Funding is decimal per actual settlement. Short funding cash is `-perp_quantity * settlement_mark * funding_rate`. Perp unrealized P&L is `quantity * (mark - average_entry)`.
 
-1. Read the observation timestamp and prices.
-2. Settle funding for the position held before this observation. Funding settlement cash cannot fund a position retroactively.
-3. Check isolated collateral against sampled mark maintenance plus closing reserve.
-4. On breach, perform a full modeled unwind, preserve any collateral deficit and halt entries.
-5. Execute intended quantities from the prior observation with separate spot/perpetual fill fractions.
-6. Mark equity and reconcile the P&L bridge.
-7. Decide intended quantities for the next observation using only information available now.
+Equity = spot cash + spot market value + derivatives collateral + perp unrealized P&L. Net P&L = spot P&L + perp P&L + funding - commissions - financing. Slippage is embedded once in leg P&L and must not be deducted again. Internal collateral allocations are not profit. USDT equals USD in the base study; depeg translation is separate.
 
-On the final sample observation, positions are closed with modeled taker costs. The default one-observation decision delay is conservative and explicit. It is eight hours in the fixture. A new position at a settlement is modeled as opened after that settlement. Real exchanges can have settlement timing deviations, which need additional event data.
+## Event order and information
 
-## Allocation and execution
+1. Settle funding on the position held before the event.
+2. Check isolated collateral using the sampled settlement mark.
+3. On breach, model an unwind and halt entries, preserving deficits.
+4. Execute an earlier target with separate leg fill assumptions.
+5. Mark equity and reconcile all cash/P&L components.
+6. Form the next target using currently available information.
 
-Initial capital is 100,000 USDT per sleeve. Spot wallet is 65%, isolated derivative collateral is 35%, and desired spot notional at entry is 55% of capital. The short has equal desired base quantity. Partial executions can leave residual delta. Pending differences are retried at subsequent observations and can be cancelled by a newer exit signal. Quantity step is an assumption. Entry margin checks may reject a short increase. Spot purchases are limited by spendable spot cash.
+Base execution delay is one observation, approximately eight hours. Sensitivities use two and three observations. Actual funding timestamps are matched to nominal 8-hour bar opens, up to 16 ms earlier. The reference is a hypothetical sampled execution, not a synchronized bid/ask or a demonstrated fill. High/low/close prices do not enter signals or executable references.
 
-Base commission assumptions are spot 10 bps each side, perpetual 5 bps each side and adverse execution slippage 2 bps. They are educational inputs, with cost ×1/×2/×3 sensitivity. Historical fee tiers and instrument filters require an audited dated specification. Market prices are observations and execution references, with slippage applied in the adverse direction. Fill fractions express hypothetical execution availability.
+## Allocation and frictions
 
-Unhedged spot, continuously held carry and threshold carry all have the same starting capital and spot allocation budget. Spot has different directional risk. Threshold uses last settled funding >= 0.5 bps per settlement. No annualized yield claim is inferred from this threshold. No train/test performance is claimed. Model thresholds have not been optimized on market data.
+Initial spot-wallet cash is 65% of capital, isolated perp collateral 35%, desired matched spot notional 55%. Base quantity stays fixed while active and is recalculated on entry. Original quantity step is 0.001 base unit for both assets. Base assumptions: spot 10 bps per side, perp 5 bps per side, adverse slippage 2 bps per fill, 10% initial margin, 1% maintenance plus 10 bps closing reserve. Financing is zero for the cash-funded base case; opportunity cost is excluded. These are historical research assumptions, not certification of a venue fee tier or liquidation schedule.
 
-## Margin and stresses
+Matched spot/perp quantities hedge directional base exposure but do not eliminate basis, funding, collateral, stablecoin or venue risk. Spot purchases can be cash-limited and perp increases rejected by initial-margin checks. Partial-fill/outage scenarios expose residual delta. Full forced-close fills are illustrative.
 
-The approximation subtracts `abs(perp_quantity) × mark × (maintenance_rate + close_reserve)` from isolated derivative equity. It does not automatically mobilize spot appreciation as collateral. A joint spot/perpetual rally can leave the combined sleeve approximately hedged while the short collateral fails. Full forced unwind at the next sampled price is an illustrative operational policy. It does not reproduce an exchange liquidation engine or prove survival between observations.
+## Policies and forecasting
 
-Stresses cover funding reversal, basis widening, partial spot fills, maintenance increase, collateral haircut and stablecoin depeg. A haircut reduces collateral eligibility in the stress diagnostic. A depeg changes USD translation. These scenario effects are reported separately.
+Baselines: unhedged spot, continuous matched carry, and carry active above last-settled funding of 0.00005 (0.5 bps per event). Spot has different directional risk and is not an equal-risk benchmark.
 
-## Forecasts
+Matched forecast families: last rate, trailing-nine mean, and ridge AR(1), using 24-90 previous observations. Standardization is fitted inside each past training window. Fixed ridge shrinkage equals the training sample count on the standardized regressor. A forecast made after event i predicts event i+1 and is first executable then, after that event's settlement. EWMA decay 0.94 is a causal volatility diagnostic, not a position rule.
 
-At observation t, predictions use funding settlements strictly before t. Last rate and trailing nine-observation mean are baselines. Ridge AR(1) uses at most 90 previous funding observations, train-only standardization and a fixed penalty of one times the training sample count on the standardized regressor. It begins after 24 observations. Squared and absolute forecast errors are exported. Volatility uses EWMA lambda 0.94 on prior log spot returns, in units per observation. It is a diagnostic and does not drive positions in this release.
+Forecast errors and net trading economics are both reported. Smoothing can improve threshold economics through lower turnover without establishing alpha. No model or threshold was selected after inspecting the holdout.
 
-Full temporal model selection, boosting, forecast-driven strategy comparison, block uncertainty and locked evaluation remain pending.
+## Risk, uncertainty and descriptive review
+
+Margin uses isolated derivative equity less absolute short notional times maintenance plus close reserve. The bar-high proxy revalues the post-trade short at the following bar's maximum mark with collateral held fixed. It is an ex-post diagnostic, not an intrabar liquidation reconstruction.
+
+Seven scenarios cover negative funding, basis widening, joint rally, partial spot fills, maintenance increases, collateral haircut and USDT depeg. Paired uncertainty uses daily P&L differences, seven-day moving blocks, 2,000 replications, seed 20261124. Intervals describe the observed regime and do not include model-selection or execution-model uncertainty.
+
+Release 0.3 descriptive funding/basis distributions, monthly regimes, persistence and turnover diagnostics explain the consumed study. They are not used to revise signals. Native Excel scenarios are separate from imported historical outcomes.

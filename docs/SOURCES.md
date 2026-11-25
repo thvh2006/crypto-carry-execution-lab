@@ -1,23 +1,22 @@
-# Source register
+# Sources and assumptions
 
-Reviewed 24 Nov 2026. Documentation informs implementation conventions. Historical market data and dated instrument rules remain unaudited.
+| Source | Use | Evidence boundary |
+|---|---|---|
+| https://github.com/binance/binance-public-data | Public archive conventions; January BTC funding cross-check | Same provider as API; not independent exchange truth |
+| https://www.binance.com/en/support/faq/detail/360033525031 | Funding sign, settlement notional and timing conventions | Does not establish historical fee tier or execution |
+| https://data-api.binance.vision/api/v3/klines | 2025 BTC/ETH spot 8-hour bars | Bar open is a hypothetical reference, not a bid/ask fill |
+| https://fapi.binance.com/fapi/v1/klines | Perpetual traded-price bars | Distinct from settlement mark |
+| https://fapi.binance.com/fapi/v1/markPriceKlines | Mark high/low stress diagnostics | OHLC cannot reconstruct intrabar event order |
+| https://fapi.binance.com/fapi/v1/fundingRate | Actual funding events, rates and settlement marks | Realized rate is available only at its event time |
+| https://fapi.binance.com/fapi/v1/exchangeInfo | Current linear USDT contract/quantity-step corroboration | Current snapshot does not establish historical filters |
 
-| Source | Claim supported | Application and limit |
-| --- | --- | --- |
-| Binance funding FAQ | Funding transfers depend on position notional and rate, use mark price, and settlement cadence can change | Engine signs and event order. Actual funding times must come from event data. |
-| Binance public data README | Archives have stream-specific schemas, spot timestamps change to microseconds from January 2025, and downloads have checksums | Candidate acquisition source. Download failed due DNS and terms require review. |
-| Bybit isolated liquidation documentation | Isolated collateral risk is assessed on mark price and includes tier-related behavior | Supports the distinction between hedge P&L and collateral survival. Bybit formulas are not used as Binance rules. |
+Original acquisition: 24 November 2026, official public responses saved through Chrome after shell DNS/archive-access failures. Exact URLs, byte hashes, original retrieval time and coverage are in `artifacts/market/data_audit.json`; preserved raw bytes remain private.
 
-https://www.binance.com/en/support/faq/detail/360033525031
+No personal trading account, private key or authenticated exchange endpoint was used. No unrestricted market-data redistribution license is asserted. Base fees, flat margin, fills, financing and initial capital are explicit research assumptions. Code licensing is separate and has not yet been selected.
 
-https://github.com/binance/binance-public-data
+## Research context
 
-https://github.com/binance/binance-public-data/blob/master/TERMS_AND_CONDITIONS.md
+- Schmeling, M., Schrimpf, A., and Todorov, K. (2023). *Crypto carry*. BIS Working Papers 1087, April 2023 version. https://www.bis.org/publications/working-paper-1087-crypto-carry.pdf . Used for carry/capital-risk context, not as a target return or a replication claim.
+- Ackerer, D., Hugonnier, J., and Jermann, U. (2024). *Perpetual Futures Pricing*, arXiv:2310.11771v2, revised 4 September 2024. https://arxiv.org/abs/2310.11771v2 . Used to distinguish funding anchoring/pricing from net executable strategy profitability.
 
-https://www.bybit.com/en/help-center/article/UTA-Trading-Rules-Liquidation-Process
-
-## Actual market acquisition - 24 November 2026
-
-Official public API responses were saved from Chrome into UTF-8 JSON; raw byte hashes and exact request parameters are in data/market/manifest.json and artifacts/market/data_audit.json. Streams cover 2025, eight-hour OHLC for spot/perpetual/mark, actual funding settlement times and marks. Each stream has 1,095 records per asset. The independent January BTC archive cross-check matches 93/93 event times and rates. Current exchangeInfo corroborates linear USDT contracts and 0.001 perpetual quantity steps only; historical filters and fee/margin tiers remain assumptions.
-
-Endpoints: https://data-api.binance.vision/api/v3/klines ; https://fapi.binance.com/fapi/v1/fundingRate ; https://fapi.binance.com/fapi/v1/klines ; https://fapi.binance.com/fapi/v1/markPriceKlines ; https://fapi.binance.com/fapi/v1/exchangeInfo . Public-data access does not establish an unrestricted redistribution license. Raw and normalized data are excluded from the public source export.
+Primary paper text/abstracts checked 25 November 2026. No external paper's historical yield is substituted for this study's outcomes.
