@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crypto-carry-execution-lab"
-version = "0.2.0"
+version = "0.3.0"
 description = "Auditable spot-perpetual carry accounting and execution stress"
 requires-python = ">=3.9"
 dependencies = []

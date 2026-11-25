@@ -4,15 +4,15 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT.parent/'p3-public'
 OUT.mkdir(exist_ok=True)
-for name in ('carry','tests','scripts','notebooks','docs','reports','deliverables','.github'):
+for name in ('carry','tests','scripts','notebooks','docs','reports','deliverables','.github','dashboard'):
  for p in (ROOT/name).rglob('*'):
   if not p.is_file() or any(x in ('__pycache__','node_modules') for x in p.parts) or p.suffix in ('.png','.ndjson','.pyc') or p.name.startswith('~$'):continue
   dest=OUT/p.relative_to(ROOT);dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,dest)
-for name in ('README.md','pyproject.toml','Makefile','.gitignore'):
+for name in ('README.md','pyproject.toml','Makefile','.gitignore','LICENSE_NOTICE.md','environment.json'):
  shutil.copyfile(ROOT/name,OUT/name)
-for category in ('demo','market'):
- for p in (ROOT/'artifacts'/category).glob('*'):
-  if not p.is_file():continue
+for category in ('demo','market','review'):
+ for p in (ROOT/'artifacts'/category).rglob('*'):
+  if not p.is_file() or '__pycache__' in p.parts or p.suffix in ('.png','.ndjson','.pyc'):continue
   if category=='market' and p.name in ('ledger.csv','trades.csv','dashboard_data.json','dashboard.html'):continue
   if category=='demo' and p.name=='dashboard.html':continue
   dest=OUT/p.relative_to(ROOT);dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,dest)
@@ -26,5 +26,5 @@ html=html[:a]+json.dumps(payload,separators=(',',':'))+html[b:]
 (OUT/'index.html').write_text(html)
 (OUT/'.nojekyll').write_text('')
 files=[p for p in OUT.rglob('*') if p.is_file() and p.name!='public_manifest.json']
-(OUT/'public_manifest.json').write_text(json.dumps({'version':'0.2.0','excluded':'raw and normalized market snapshots; price-level ledgers; private paper state','sha256':{str(p.relative_to(OUT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files}},indent=2))
+(OUT/'public_manifest.json').write_text(json.dumps({'version':'0.3.0','excluded':'raw and normalized market snapshots; price-level ledgers; private paper state','sha256':{str(p.relative_to(OUT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files}},indent=2))
 print(json.dumps({'path':str(OUT),'files':len(files)+1}))

@@ -1,31 +1,40 @@
-# Market snapshot contract
+# Data contract and provenance
 
-Use `BTCUSDT.csv`, `ETHUSDT.csv` and `manifest.json` in a private directory. The CLI never sends orders or uses exchange API keys.
+## Preserved market snapshot
 
-CSV columns are `timestamp,symbol,spot,perp,mark,funding,elapsed_hours,spot_fill,perp_fill`. Timestamps must be unique, sorted, timezone-aware UTC and aligned across price sources for the same event. Prices must be positive and finite. Funding is decimal per actual settlement. Fill fractions range from zero to one and are explicit execution assumptions. Quantity is base-asset exposure after contract multiplier conversion. `elapsed_hours` must equal the actual time since the previous row. The first row's interval describes its settlement convention.
+Private normalized files: `data/market/BTCUSDT.csv`, `ETHUSDT.csv`, `manifest.json`. The original raw snapshot contains funding, spot, perpetual and mark-price API responses plus a January BTC funding archive. All four streams contain 1,095 nominal observations per asset for 2025. No missing or duplicate nominal event was accepted. Archive/API comparison matches 93/93 January BTC funding timestamps and rates; both sources share the same provider.
 
-The timestamp checks can detect a gap relative to the declared interval. They cannot discover an omitted settlement if a source also changes the declared interval. Independently reconcile all settlement timestamps and cadence changes against the venue history before setting funding_coverage_verified.
+| Field | Unit / meaning |
+|---|---|
+| timestamp | Actual funding availability/event time, timezone-aware UTC |
+| symbol | BTCUSDT or ETHUSDT |
+| spot / perp | Nominal 8-hour bar open, USDT per base unit |
+| mark | Actual funding settlement mark |
+| funding | Decimal rate per settlement, not annualized |
+| elapsed_hours | Actual difference from the previous funding timestamp |
+| spot_fill / perp_fill | Explicit hypothetical fractions, 0-1 |
+| funding_time_ms / bar_open_ms | API milliseconds, retained separately |
+| quote_age_ms | Funding time minus bar open time; maximum 16 ms |
+| mark_high / mark_low | Ex-post stress inputs only, never signals or fills |
 
-Manifest example, with approvals initially false
+Validate positive finite prices, finite rates, strict UTC ordering, single-symbol sleeves, unique nominal grid and actual elapsed intervals. Do not fill missing funding with zero. A changed cadence or missing event stops the historical adapter; study changes require a separate version.
 
-```json
-{
-  "kind": "market",
-  "source_urls": [],
-  "funding_coverage_verified": false,
-  "timestamp_alignment_verified": false,
-  "rights_reviewed": false,
-  "contract_specs_reviewed": false,
-  "raw_receipt_paths": [],
-  "historical_fee_schedule": "pending",
-  "instrument_filter_history": "pending"
-}
-```
+Spot API klines use milliseconds in this snapshot. The 2025 microsecond convention of spot archive files must not be applied to API responses. Opening a candle at the same nominal funding time does not establish an executable quote after funding availability.
 
-Approvals record a human/data audit. The CLI validates schema and event ordering independently. Retain raw hashes, retrieval timestamps, availability timestamps, funding cadence, price type, interval granularity, fee/spec version and all exceptions. Funding history is realized cash-flow data. Predicted or indicative funding needs a separate availability-timestamped feed.
+## Stable identity and reruns
 
-Binance public archives are a candidate source. Spot archive timestamps from January 2025 use microseconds, while derivatives streams require their own unit checks. Normalize units by the documented stream convention. A timestamp magnitude guess alone is insufficient evidence. A common interval candle does not establish an executable synchronized quote at the funding instant. Mark prices and traded prices serve different roles.
+Raw SHA-256s, exact request parameters and original retrieval time are in the preserved manifest and public `artifacts/market/data_audit.json`. Re-normalizing the same raw bytes preserves the original retrieval timestamp, so the normalized manifest is deterministic. New acquisition receipts are separate and are never backdated.
 
-Read the provider terms and record analysis/export/redistribution rights separately. Keep downloaded market data private until sharing rights are confirmed. A code repository license does not automatically license market data.
+`python3 -m carry.reproduce` verifies every original frozen source/input hash in an isolated temporary checkout and compares all seven CSV hashes. It writes a new reproduction directory rather than replacing the original study.
 
-The environment failed DNS lookup for data.binance.vision on 24 Nov 2026. No market archive was acquired or audited. Market mode currently accepts externally prepared normalized data. An archive adapter remains pending until a representative raw sample is verified.
+## Optional public reacquisition
+
+`python3 -m carry.acquire --install-equivalent` collects official public API pages into a new private `data/acquired/` directory, audits complete coverage and installs normalized CSVs only if they match the original frozen CSV hashes. It retains new raw-byte receipts separately and the original normalized-data provenance unchanged. Provider revisions that change normalized data require a new study. HTTP 451 is a hard stop, not a reason to change regions or bypass restrictions.
+
+Endpoint availability and successful reacquisition depend on the execution environment. The hosted paper runner returned HTTP 451; optional reacquisition has not been demonstrated from that blocked environment.
+
+## Public export boundaries
+
+Raw/normalized snapshots and price-level ledgers are private; no unrestricted redistribution license is asserted. Public artifacts contain aggregate statistics and derived account trajectories, without raw price/settled-rate columns. The workbook History tab contains derived account values. A code license would not license provider data.
+
+The legacy manifest flags describe the recorded research audit and its stated private-use scope. They do not certify historical fee tiers, maintenance rules, executable fills or legal permission for unrestricted exports.

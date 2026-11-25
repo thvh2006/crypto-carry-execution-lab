@@ -45,6 +45,10 @@ def chart(ledgers, path):
 
 
 def main():
+    # Preserve the consumed study. Rebuild through its immutable source snapshot.
+    if (ROOT/'artifacts/market/frozen_source/carry/study.py').exists():
+        from .reproduce import main as reproduce_main
+        return reproduce_main()
     out=ROOT/'artifacts/market';out.mkdir(parents=True,exist_ok=True)
     config=Config(quantity_step=.001)
     frozen_files=[ROOT/'carry'/name for name in ('engine.py','market.py','study.py','run.py')]+list((ROOT/'data/market').glob('*'))+[ROOT/'docs/STUDY_PROTOCOL_V1.md']

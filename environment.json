@@ -1,0 +1,10 @@
+{
+  "engine_python_minimum": "3.9",
+  "engine_dependencies": [],
+  "authoring_python": "3.12.14",
+  "reportlab": "4.4.9",
+  "workbook": "@oai/artifact-tool in provided primary runtime",
+  "font": "Installed Times New Roman, embedded in PDF; not redistributed",
+  "scope": "Authoring environment, not needed for opening PDF/XLSX or running engine tests",
+  "original_study_python": "3.9.6"
+}

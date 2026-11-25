@@ -1,8 +1,28 @@
 """Build a standalone offline dashboard from a completed run."""
 import json
+import csv
+from pathlib import Path
 
 
 def build_dashboard(directory):
+    root = Path(__file__).resolve().parents[1]
+    if directory.name == 'market' and (root/'artifacts/review/curves.csv').exists():
+        def records(path):
+            with path.open() as stream:
+                rows=list(csv.DictReader(stream))
+            for row in rows:
+                for key,value in row.items():
+                    try:row[key]=float(value)
+                    except (ValueError,TypeError):pass
+            return rows
+        payload=dict(receipt=json.loads((directory/'receipt.json').read_text()),
+            summary=records(directory/'summary.csv'),ledger=records(root/'artifacts/review/curves.csv'),
+            cost=records(directory/'cost_sensitivity.csv'),forecasts=records(directory/'forecast_errors.csv'),
+            turnover=records(root/'artifacts/review/turnover.csv'),health=json.loads((directory/'data_audit.json').read_text()))
+        text=json.dumps(payload,separators=(',',':'))
+        (directory/'dashboard_data.json').write_text(text)
+        (directory/'dashboard.html').write_text((root/'dashboard/template.html').read_text().replace('PAYLOAD',text))
+        return
     payload = (directory / "dashboard_data.json").read_text()
     template = r'''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Crypto Carry Research</title>
 <style>body{margin:0;background:#f1f0e9;color:#17332e;font:16px system-ui}main{max-width:1120px;margin:auto;padding:32px 24px}h1{font:clamp(34px,6vw,62px) Georgia;margin:16px 0}p{line-height:1.6}#status{background:#f9d68d;padding:16px;border-left:4px solid #a26e19}.controls{display:flex;gap:20px;flex-wrap:wrap;margin:24px 0}select,button,input{padding:8px;font:inherit}label{display:grid;gap:7px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}.card{padding:20px;background:white}.card strong{display:block;font:30px Georgia;margin-top:10px}canvas{width:100%;height:300px;background:white;margin-top:24px}table{width:100%;border-collapse:collapse;background:white;margin:20px 0}th,td{text-align:right;padding:12px;border-bottom:1px solid #ddd}th:first-child,td:first-child{text-align:left}footer,small{color:#51625c}#scenario{background:white;padding:24px}a{color:#14624e}</style>

@@ -1,0 +1,11 @@
+{
+  "kind": "Post-study descriptive review; not a new holdout",
+  "source_run": "eed008040d6c6d18",
+  "source_sha256": {
+    "summary.csv": "bc3a8ff786322ee765d4228f887e0f8f273a3df7e0974c87ec746624188b0314",
+    "ledger.csv": "38870e1071f58a04b01fb9da0b78ee12470f86c0a6d79363a677567668a3e636",
+    "trades.csv": "163eef6013e20d51c16d75e6a2c223f6425c64f9cc9ff5247d2ad45dbec5657c",
+    "cost_sensitivity.csv": "2bc8f64887031084a6095a2286ab1e7683986fa97ba820f2a282c2ec19095379"
+  },
+  "definitions": "Rates/basis in bps per observed settlement; turnover sums absolute notional on both legs / 100000 sleeve; active events count post-trade perp holdings."
+}

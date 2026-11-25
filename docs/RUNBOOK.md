@@ -1,19 +1,57 @@
-# Reproduction and next research gate
+# Reproduction and operations runbook
 
-Engine, tests and the notebook builder run with stock Python 3.9+. The builder executes each notebook from a clean namespace and serializes its actual stream outputs in nbformat 4 JSON. Interactive notebook use requires a Jupyter-compatible application. Workbook rebuilding needs the OpenAI primary runtime with @oai/artifact-tool. The delivered workbook is self-contained and formula-driven in Excel.
+## Public review without network access
 
-Run tests, then demo CLI. Each demo overwrites its deterministic synthetic inputs and output tables. Input and config hashes identify the computation. `published_at` records the actual build time and `as_of` records fixture event time. A git commit is recorded when a committed checkout exists. Source hashes in the release manifest identify the delivered files.
+Use Python 3.9+ from the repository root. Engine/tests/notebook generation have no third-party Python dependencies. Interactive notebook viewing requires Jupyter/IPython.
 
-For market work, preserve raw snapshots separately and normalize a small BTC sample first. Verify funding signs/times and mark/trade distinction, then do ETH. Freeze development/validation/locked periods and the experiment budget before any model search. Market mode runs supplied data as development replay and offers no locked-test certification.
+```sh
+python3 -m unittest discover -s tests -v
+python3 -m carry.run demo
+python3 scripts/build_notebooks.py
+```
 
-Forward paper work requires a live collector with observation and receipt timestamps, frozen policy, append-only intended orders and simulated fills, actual funding receipts and daily reconciliation. This release contains the protocol and historical engine. It has no fabricated forward trades or scheduled refresh.
+The notebooks execute calculations and deterministic cases, render actual tables/SVGs, and explain published market evidence. Public aggregate evidence is sufficient for this review path; it is not a full market replay.
 
-Before publishing, confirm market-data redistribution rights, run all tests and notebooks, rebuild workbook/dashboard from the same receipt and validate hosting. Preserve last-known-good artifacts if future refresh fails. Stop new signals on stale or incomplete input and retain the incident record. Scheduled refresh and rollback automation are pending.
+## Exact original study reproduction
 
-## Market evidence and paper loop (release 0.2)
+With the preserved private snapshot placed under `data/market/`:
 
-Run `python3 -m carry.market` against preserved JSON, then `python3 -m carry.study`. The study freezes source/config/data before the first result pass and rejects mismatches. To change a consumed study, create an explicitly amended protocol and output version; never delete the freeze to make it pass silently.
+```sh
+python3 -m carry.reproduce --verify-only
+python3 -m carry.reproduce --out artifacts/reproduction
+```
 
-Run `python3 -m carry.paper` for public-data-only hypothetical observations. Preserve `paper/state/`; the first snapshot remains flat and cannot earn past funding. Use one process. A stale lock after a crash must be investigated before manual removal. Stale quotes, missing funding, a changed 8-hour cadence, 1,000-row truncation and duplicate observations stop updates. Network failure must not be substituted with zero funding or a successful-paper flag.
+The exact byte baseline used Python 3.9.6. Newer Python versions can change floating-point summation in forecast error summaries. An explicit separate `--allow-numeric-equivalence` run checks fixed absolute 1e-9 / relative 1e-12 tolerances and labels any differences; it never claims byte identity.
 
-A daily/8-hour polling collector has modeled midpoint fills with slippage, not venue execution. No private exchange key is accepted. A scheduled runner must be tested from its own network: some hosting regions cannot reach Binance. Forward outcomes need real future elapsed time. Current collector test coverage proves initialization/timing mechanics only.
+The second command runs immutable source in a temporary isolated tree, checks all seven output CSV hashes, and writes `reproduction_receipt.json`. The original freeze, CSVs and published receipt are never replaced. `python3 -m carry.study` delegates to this reproduction path in release 0.3. Do not delete a freeze to make a changed study pass.
+
+If raw snapshots are available, `python3 -m carry.market` deterministically restores normalized files. The acquisition time is preserved when raw hashes match. To reacquire publicly where the provider permits access, use `python3 -m carry.acquire --install-equivalent`. A changed provider snapshot is preserved as a candidate and is not silently accepted as the original.
+
+## Rebuild descriptive analysis and deliverables
+
+```sh
+python3 -m scripts.prepare_review
+python3 scripts/design_notebooks.py
+python3 scripts/build_notebooks.py
+python3 scripts/build_report.py
+node scripts/build_workbook.mjs
+python3 scripts/export_public.py
+```
+
+`prepare_review` requires the private original ledger, fills and normalized prices. It derives post-study diagnostics without choosing a new strategy. Report authoring additionally needs ReportLab and installed Times New Roman fonts (`P3_TIMES_FONT_DIR` can identify their directory). Workbook authoring needs the provided artifact runtime; the delivered XLSX has native formulas/charts and opens independently. See `environment.json` for the authoring environment.
+
+## Paper loop: blocked on the hosted runner
+
+`python3 -m carry.paper` uses public quote, mark and settled-funding endpoints only. No private keys or order endpoints are accepted. Its first observation starts flat, creates an epoch and records a target for a later observation. Subsequent steps settle new funding, execute previous hypothetical intent, reconcile equity, and retain intent/fill details.
+
+Non-finite inputs, future/duplicate funding, stale quotes, funding gaps, changed cadence, incomplete pagination and duplicate observations stop updates. Preserve `paper/state/` and its epoch. Cache loss must be treated as a new paper run, never a continuation of the old track record. A state lock prevents concurrent local runs; investigate a stale lock before removing it after a crash.
+
+The retained GitHub-hosted run failed with HTTP 451 at futures bookTicker. Its cron schedule is omitted, leaving a manual workflow for a permitted environment check. No successful forward paper state or performance is claimed. Do not bypass provider restrictions or substitute assumed data. Archive incidents and preserve the last-known-good state.
+
+## Release and recovery
+
+1. Run tests, public notebook smoke build, exact reproduction where private data are available, and workbook input/recalculation checks.
+2. Confirm report/workbook/dashboard reference the same original run and separate historical/scenario/paper labels.
+3. Export only reviewed public derived fields; verify local relative links and artifact hashes.
+4. Publish source and static dashboard. Check deployed selectors, tables, calculator and CSV downloads.
+5. Retain the previous GitHub commit and private evidence version. Restore a known commit if a publication fails; never label a failed collection current.

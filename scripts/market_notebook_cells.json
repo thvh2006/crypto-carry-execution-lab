@@ -1,18 +1,170 @@
 [
- ["01_contract_and_data_audit","Contract and audited 2025 market data",[
-  "import json\nfrom pathlib import Path\naudit=json.loads(Path('artifacts/market/data_audit.json').read_text())\nprint(json.dumps(audit['coverage'],indent=2))\nprint(audit['timestamp_method'])\nassert all(x['missing']==0 and x['duplicates']==0 and x['events']==1095 for x in audit['coverage'])",
-  "from carry.run import golden_case\nprint('Independent two-leg case:',golden_case())\nprint('Historical fees and margin tiers are assumptions. 8h bar-open fills are hypothetical.')"
- ]],
- ["02_two_leg_ledger_and_baselines","Two-leg accounting and market baselines",[
-  "import csv\nfrom pathlib import Path\nrows=list(csv.DictReader(Path('artifacts/market/summary.csv').open()))\nfor row in rows:\n    if row['partition']=='holdout' and row['policy'] in ('spot','continuous','threshold'):\n        print(row['symbol'],row['policy'],'net',round(float(row['net_pnl']),2),'fees',round(float(row['fees']),2))\nassert max(float(r['max_reconciliation_error']) for r in rows)<1e-6",
-  "import unittest\nsuite=unittest.defaultTestLoader.discover('tests')\nresult=unittest.TextTestRunner(verbosity=1).run(suite)\nassert result.wasSuccessful()\nprint('Settlement timing, two-leg costs, future-data changes, delay and paper initialization verified.')"
- ]],
- ["03_funding_forecasts_and_costs","Causal forecasts, net economics and uncertainty",[
-  "import csv\nfrom pathlib import Path\nrows=list(csv.DictReader(Path('artifacts/market/forecast_errors.csv').open()))\nfor r in rows:\n    if r['partition']=='holdout':print(r['symbol'],r['model'],'MAE bps',round(float(r['mae'])*10000,4),'n',r['n'])\nprint('Last rate, nine-period mean, ridge AR(1). Past-only rolling training; at least 24 events, at most 90.')",
-  "rows=list(csv.DictReader(Path('artifacts/market/paired_uncertainty.csv').open()))\nfor r in rows:\n    if r['partition']=='holdout':\n        print(r['symbol'],r['policy'],'minus',r['benchmark'],'net difference',round(float(r['paired_pnl_difference']),2),'95% observed-regime block interval',round(float(r['block_bootstrap_low']),2),round(float(r['block_bootstrap_high']),2))\nprint('Smoother forecasts lose less than the naive threshold but do not beat continuous carry. Error and economics are separate.')"
- ]],
- ["04_margin_and_execution_stress","Isolated margin, partial fills and failure modes",[
-  "from carry.engine import stress_case\nimport json\nresult=stress_case(spot_shock=.8,perp_shock=.8)\nprint(json.dumps(result,indent=2))\nassert result['equity_usdt']>99000 and result['margin_buffer_after_haircut']<0\nprint('Combined economic equity can survive while isolated collateral fails.')",
-  "import csv\nfrom pathlib import Path\nrows=list(csv.DictReader(Path('artifacts/market/summary.csv').open()))\nfor r in rows:\n    if r['partition']=='holdout' and r['policy']=='continuous':\n        print(r['symbol'],'minimum sampled buffer',r['minimum_sampled_margin_buffer'],'bar-high proxy',r['minimum_bar_high_margin_proxy'])\nprint('A positive OHLC proxy does not certify intrabar survival or venue-exact liquidation. Forward paper performance is unavailable.')"
- ]]
+  [
+    "01_contract_and_data_audit",
+    "Contract, timestamp and market-regime audit",
+    [
+      {
+        "cell_type": "markdown",
+        "source": "## Question and evidence contract\nCan the 2025 BTC/ETH streams support a settlement-level study? Inputs are the published data audit and post-study diagnostics. Raw/normalized inputs remain private. Funding units are decimal per settlement; the tables below use basis points. Run: `eed008040d6c6d18`. These descriptive diagnostics were added after the holdout was consumed and do not select new models."
+      },
+      {
+        "cell_type": "code",
+        "source": "import csv,json,math,statistics\nfrom pathlib import Path\nfrom carry.figures import lines,bars\nfrom carry.engine import Config,replay,stress_case\nfrom carry.run import sample,forecast_comparison,summarize,golden_case\n\ndef read_csv(name):\n    with Path(name).open() as f:return list(csv.DictReader(f))\n"
+      },
+      {
+        "cell_type": "code",
+        "source": "audit=json.loads(Path('artifacts/market/data_audit.json').read_text())\nshow_table(['Asset','Events','Missing','Duplicates','Max timestamp offset (ms)'],[[r['symbol'],r['events'],r['missing'],r['duplicates'],r['max_quote_age_ms']] for r in audit['coverage']])\nassert all(r['events']==1095 and r['missing']==0 and r['duplicates']==0 for r in audit['coverage'])"
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Timestamp decision\nActual funding milliseconds are retained. Executable references are nominal 8-hour bar opens, up to 16 ms earlier. This is a sampled execution assumption, not a synchronized order-book quote. Missing funding is never filled with zero. Current contract filters do not establish 2025 fee or margin tiers."
+      },
+      {
+        "cell_type": "code",
+        "source": "diagnostics=read_csv('artifacts/review/funding_diagnostics.csv')\nshow_table(['Asset','Mean funding (bps)','5th percentile','95th percentile','Negative events %','Longest negative run','Lag-1 correlation'],[[r['symbol'],*[round(float(r[k]),4) for k in ('funding_mean_bps','funding_p05_bps','funding_p95_bps')],round(float(r['negative_fraction'])*100,2),r['longest_negative_run'],round(float(r['funding_lag1_correlation']),3)] for r in diagnostics])"
+      },
+      {
+        "cell_type": "code",
+        "source": "bins=read_csv('artifacts/review/funding_histogram.csv')\nfor symbol in ('BTCUSDT','ETHUSDT'):\n    values=[r for r in bins if r['symbol']==symbol]\n    show_svg(bars(symbol+' funding-rate distribution',[r['bin'] for r in values],[int(r['count']) for r in values],'Settlements; bin boundaries in bps'))\n    assert sum(int(r['count']) for r in values)==1095"
+      },
+      {
+        "cell_type": "code",
+        "source": "regimes=read_csv('artifacts/review/monthly_regimes.csv')\nfor symbol in ('BTCUSDT','ETHUSDT'):\n    rs=[r for r in regimes if r['symbol']==symbol]\n    show_svg(lines(symbol+' monthly mean funding',[r['month'] for r in rs],{'Funding':[float(r['mean_funding_bps']) for r in rs]},'bps per settlement'))\nshow_table(['Asset','Median basis (bps)','5th percentile','95th percentile','Funding / basis correlation'],[[r['symbol'],*[round(float(r[k]),3) for k in ('basis_median_bps','basis_p05_bps','basis_p95_bps','funding_basis_correlation')]] for r in diagnostics])"
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Interpretation and exclusions\nPositive average funding coexists with negative settlements and serial dependence. Persistence motivates testing a smoother forecast but does not establish net profitability. Basis uses traded perp / spot references and remains distinct from the settlement mark. Correlations are contemporaneous descriptions, not causal or out-of-sample signals. No venue, asset or period is removed based on these plots."
+      },
+      {
+        "cell_type": "code",
+        "source": "print('Funding sign convention: short payment = -signed perp units \u00d7 settlement mark \u00d7 rate.')\nprint('Independent case:',golden_case())\nprint('Retained universe: BTCUSDT and ETHUSDT; all 1,095 observed events per asset.')"
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Conclusion and artifacts\nCoverage supports the fixed sampled study. It does not support an order-book execution claim or exact liquidation reconstruction. Audit: `artifacts/market/data_audit.json`. Descriptive tables: `artifacts/review/funding_diagnostics.csv`, `monthly_regimes.csv`, `funding_histogram.csv`. Private-input rebuild: `python3 -m scripts.prepare_review`."
+      }
+    ]
+  ],
+  [
+    "02_two_leg_ledger_and_baselines",
+    "Two-leg reconciliation, capital and turnover",
+    [
+      {
+        "cell_type": "markdown",
+        "source": "## Question\nDoes apparent funding income survive both legs, separate collateral, commissions and switching? Historical metrics come from the frozen study. An independent deterministic case below exercises the actual engine. Each historical asset/policy/partition uses its own 100,000 USDT sleeve."
+      },
+      {
+        "cell_type": "code",
+        "source": "import csv,json,math,statistics\nfrom pathlib import Path\nfrom carry.figures import lines,bars\nfrom carry.engine import Config,replay,stress_case\nfrom carry.run import sample,forecast_comparison,summarize,golden_case\n\ndef read_csv(name):\n    with Path(name).open() as f:return list(csv.DictReader(f))\n"
+      },
+      {
+        "cell_type": "code",
+        "source": "rows=sample('BTCUSDT')[:12]\nledger,fills=replay(rows,Config(),'continuous')\nshow_table(['UTC','Spot units','Perp units','Funding cash','Equity','Bridge residual'],[[r['timestamp'],round(r['spot_qty'],4),round(r['perp_qty'],4),round(r['funding_cash'],4),round(r['equity'],4),round(r['reconciliation_error'],9)] for r in ledger[:5]])\nassert ledger[1]['funding_cash']==0\nassert max(abs(r['reconciliation_error']) for r in ledger)<1e-6"
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Accounting bridge\nEquity is spot cash + spot market value + perp collateral + unrealized perp P&L. Net P&L is both leg P&Ls + funding - commissions - financing. Slippage is embedded once in leg P&L. A collateral transfer is not profit. The capital denominator includes idle collateral and cash."
+      },
+      {
+        "cell_type": "code",
+        "source": "summary=read_csv('artifacts/market/summary.csv')\nhold=[r for r in summary if r['partition']=='holdout' and r['policy'] in ('spot','continuous','threshold')]\nshow_table(['Asset','Policy','Spot P&L','Perp P&L','Funding','Fees','Net P&L'],[[r['symbol'],r['policy'],*[round(float(r[k]),2) for k in ('spot_pnl','perp_pnl','funding','fees','net_pnl')]] for r in hold])\nfor r in summary:\n    bridge=sum(float(r[k]) for k in ('spot_pnl','perp_pnl','funding'))-float(r['fees'])\n    assert abs(bridge-float(r['net_pnl']))<1e-6"
+      },
+      {
+        "cell_type": "code",
+        "source": "turnover=read_csv('artifacts/review/turnover.csv')\nselected=[r for r in turnover if r['partition']=='holdout' and r['policy'] in ('continuous','threshold','forecast_rolling_mean')]\nshow_table(['Asset','Policy','Fill count','Two-leg turnover / capital','Funding','Fees'],[[r['symbol'],r['policy'],r['fills'],round(float(r['turnover_over_capital']),2),round(float(r['funding']),2),round(float(r['fees']),2)] for r in selected])"
+      },
+      {
+        "cell_type": "code",
+        "source": "curves=read_csv('artifacts/review/curves.csv')\nfor symbol in ('BTCUSDT','ETHUSDT'):\n    group={policy:[r for r in curves if r['symbol']==symbol and r['partition']=='holdout' and r['policy']==policy] for policy in ('continuous','threshold','forecast_rolling_mean')}\n    show_svg(lines(symbol+' holdout net P&L',[r['timestamp'][:10] for r in group['continuous']],{k:[float(r['net_pnl']) for r in v] for k,v in group.items()}))"
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Decision\nThe naive threshold earns funding but spends more on switching. A smoother rule reduces turnover; this should not be confused with a proven forecasting edge. Continuous carry has different operational and collateral exposure, so policy selection cannot use net P&L alone. Full close-out costs are included at every partition end."
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Conclusion and artifacts\nThe engine reconciles the sampled ledger, and the trading-cost mechanism explains the negative threshold result. Sources: frozen `summary.csv`, `trades.csv` (private), and derived public `turnover.csv` / `curves.csv`. Workbook Review traces all 36 historical sleeves; Scenario computes independent economics. No new strategy was fitted in this notebook."
+      }
+    ]
+  ],
+  [
+    "03_funding_forecasts_and_costs",
+    "Forecast error, net value and friction sensitivity",
+    [
+      {
+        "cell_type": "markdown",
+        "source": "## Question and temporal contract\nDoes a forecast improve next-settlement funding prediction and net strategy economics? Fixed families: last rate, nine-period mean and ridge AR(1). Past-only training starts at 24 observations and uses at most 90. The threshold is fixed at 0.5 bps. Development, validation and holdout are reported separately; this consumed holdout cannot be reused as untouched."
+      },
+      {
+        "cell_type": "code",
+        "source": "import csv,json,math,statistics\nfrom pathlib import Path\nfrom carry.figures import lines,bars\nfrom carry.engine import Config,replay,stress_case\nfrom carry.run import sample,forecast_comparison,summarize,golden_case\n\ndef read_csv(name):\n    with Path(name).open() as f:return list(csv.DictReader(f))\n"
+      },
+      {
+        "cell_type": "code",
+        "source": "fixture=sample('ETHUSDT')[:80]\npredictions=forecast_comparison(fixture)\nassert all(p['training_end']<p['timestamp'] for p in predictions)\nmutated=[dict(r) for r in fixture]\nfor r in mutated[60:]:r['funding']+=.01\na=forecast_comparison(mutated)\nassert [p for p in predictions if p['timestamp']<fixture[60]['timestamp']]==[p for p in a if p['timestamp']<fixture[60]['timestamp']]\nprint('Past-only cutoffs and a future-data mutation check passed on the deterministic fixture.')"
+      },
+      {
+        "cell_type": "code",
+        "source": "errors=read_csv('artifacts/market/forecast_errors.csv')\nshow_table(['Asset','Partition','Model','n','MAE (bps)','RMSE (bps)'],[[r['symbol'],r['partition'],r['model'],r['n'],round(float(r['mae'])*10000,4),round(float(r['rmse'])*10000,4)] for r in errors])"
+      },
+      {
+        "cell_type": "code",
+        "source": "cost=read_csv('artifacts/market/cost_sensitivity.csv')\nfor symbol in ('BTCUSDT','ETHUSDT'):\n    group={p:[r for r in cost if r['symbol']==symbol and r['partition']=='holdout' and r['policy']==p] for p in ('continuous','threshold','forecast_rolling_mean')}\n    show_svg(lines(symbol+' cost sensitivity',['1x','2x','3x'],{k:[float(r['net_pnl']) for r in v] for k,v in group.items()}))"
+      },
+      {
+        "cell_type": "code",
+        "source": "intervals=read_csv('artifacts/market/paired_uncertainty.csv')\nshow_table(['Asset','Policy minus benchmark','Observed P&L difference','95% block low','95% block high'],[[r['symbol'],r['policy']+' - '+r['benchmark'],*[round(float(r[k]),2) for k in ('paired_pnl_difference','block_bootstrap_low','block_bootstrap_high')]] for r in intervals if r['partition']=='holdout'])\nprint('Paired daily increments; 7-day moving blocks, 2,000 draws, seed 20261124.')"
+      },
+      {
+        "cell_type": "code",
+        "source": "delay=read_csv('artifacts/market/delay_sensitivity.csv')\nshow_table(['Asset','Policy','Delay (events)','Holdout net P&L'],[[r['symbol'],r['policy'],r['delay_events'],round(float(r['net_pnl']),2)] for r in delay if r['partition']=='holdout' and r['policy'] in ('continuous','threshold')])"
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Interpretation\nCompare error and economics separately. ETH ridge improves forecast MAE relative to the mean but has worse net threshold-strategy economics. Smoothing improves on the naive last-rate filter but does not beat continuous carry in this holdout. Continuous carry itself becomes fragile when costs scale up. The block intervals describe this observed regime; they do not adjust for model search or execution misspecification."
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Conclusion and artifacts\nThe incremental trading-benefit gate fails against the simpler continuous benchmark. No hyperparameter or threshold is revised here. Sources: frozen `forecast_errors.csv`, `cost_sensitivity.csv`, `delay_sensitivity.csv`, `paired_uncertainty.csv`. Future cost-aware rules require a new protocol and new evidence."
+      }
+    ]
+  ],
+  [
+    "04_margin_and_execution_stress",
+    "Margin survival, execution mismatch and operations",
+    [
+      {
+        "cell_type": "markdown",
+        "source": "## Question\nCan combined economic equity survive while isolated collateral fails, and what operational evidence remains missing? Inputs combine independent scenarios and frozen historical diagnostics. These calculations approximate margin and do not reconstruct venue liquidation."
+      },
+      {
+        "cell_type": "code",
+        "source": "import csv,json,math,statistics\nfrom pathlib import Path\nfrom carry.figures import lines,bars\nfrom carry.engine import Config,replay,stress_case\nfrom carry.run import sample,forecast_comparison,summarize,golden_case\n\ndef read_csv(name):\n    with Path(name).open() as f:return list(csv.DictReader(f))\n"
+      },
+      {
+        "cell_type": "code",
+        "source": "cases={'negative funding':{},'basis widening':{'perp_shock':.05},'joint 80% rally':{'spot_shock':.8,'perp_shock':.8},'half-filled spot':{'spot_fill':.5,'spot_shock':-.2,'perp_shock':-.2},'maintenance increase':{'maintenance_rate':.05,'perp_shock':.1},'collateral haircut':{'collateral_haircut':.5,'perp_shock':.1},'USDT depeg':{'stablecoin_usd':.9}}\nresults={name:stress_case(**params) for name,params in cases.items()}\nshow_table(['Scenario','Economic equity USDT','USD value','Margin buffer','Extra collateral'],[[name,*[round(r[k],2) for k in ('equity_usdt','equity_usd_after_depeg','margin_buffer_after_haircut','additional_collateral_required')]] for name,r in results.items()])\nassert results['joint 80% rally']['equity_usdt']>99000\nassert results['joint 80% rally']['margin_buffer_after_haircut']<0"
+      },
+      {
+        "cell_type": "code",
+        "source": "show_svg(bars('Isolated collateral under hypothetical stresses',list(results),[r['margin_buffer_after_haircut'] for r in results.values()],'Margin buffer (USDT)'))"
+      },
+      {
+        "cell_type": "code",
+        "source": "rows=sample('BTCUSDT')[:15]\nrows[1]['spot_fill']=.5;rows[1]['perp_fill']=0\nledger,fills=replay(rows,Config(),'continuous')\nshow_table(['Event','Spot units','Short units','Residual delta USDT','Margin buffer'],[[i,round(r['spot_qty'],4),round(r['perp_qty'],4),round(r['residual_delta_usdt'],2),round(r['margin_buffer'],2)] for i,r in enumerate(ledger[:6])])\nassert ledger[1]['residual_delta_units']!=0"
+      },
+      {
+        "cell_type": "code",
+        "source": "from carry.paper import step\nrow=dict(timestamp='2026-11-24T00:00:00Z',symbol='BTCUSDT',spot=100,perp=100,mark=100,funding=.001,observed_ms=1000000)\nfunds=[dict(fundingTime=900000,fundingRate='.001',markPrice='100')]\ninitial=step(None,row,funds)\nassert initial['receipt']['funding_total']==0 and initial['receipt']['modeled_fills']==0\nshow_table(['Paper initialization check','Result'],[['Old funding claimed',initial['receipt']['funding_total']],['Immediate fills',initial['receipt']['modeled_fills']],['State','Flat; target eligible on later observation']])"
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Incident and recovery\nThe hosted paper run returned HTTP 451 from Binance futures. Scheduling is intentionally disabled; no successful forward state or track record is claimed. Do not substitute assumed observations for failed collection. A permitted environment must be verified before scheduling; preserve state, inspect funding cadence and keep incident receipts."
+      },
+      {
+        "cell_type": "markdown",
+        "source": "## Conclusion and artifacts\nDelta neutrality does not make the position risk-free. Separate margin, basis, funding, partial fills, collateral eligibility and currency translation matter. The public workbook Scenario exposes these mechanisms. Sources: `stress_case`, frozen margin diagnostics, `docs/RUNBOOK.md` and the retained failed workflow link in `docs/RELEASE_NOTES.md`."
+      }
+    ]
+  ]
 ]

@@ -1,6 +1,7 @@
 """Read-only daily paper loop. Hypothetical fills; never submits an order."""
 import argparse
 import json
+import math
 import os
 import time
 import urllib.request
@@ -42,12 +43,27 @@ def fetch(symbol, since):
 
 
 def step(state,row,funds):
+    if not funds:
+        raise ValueError('No settled funding available')
+    for key in ('spot','perp','mark','funding','observed_ms'):
+        if not math.isfinite(row[key]):
+            raise ValueError('Non-finite paper input: '+key)
+    if min(row['spot'],row['perp'],row['mark'])<=0:
+        raise ValueError('Paper prices must be positive')
+    times=[f['fundingTime'] for f in funds]
+    if times!=sorted(set(times)) or times[-1]>row['observed_ms']:
+        raise ValueError('Duplicate, unsorted or unavailable funding')
+    for event in funds:
+        if not math.isfinite(float(event['fundingRate'])) or not math.isfinite(float(event['markPrice'])) or float(event['markPrice'])<=0:
+            raise ValueError('Invalid funding event')
     cfg=Config(quantity_step=.001)
     account=Account(cfg)
     if state:
         if state['config']!=asdict(cfg):raise ValueError('Configuration changed: start a separately labeled paper run')
         if row['observed_ms']-state['observed_ms']<300000:raise ValueError('Duplicate or too-frequent observation')
-        for key,value in state['account'].items():setattr(account,key,value)
+        for key,value in state['account'].items():
+            if not math.isfinite(value):raise ValueError('Invalid stored paper state')
+            setattr(account,key,value)
     last=state['last_funding_ms'] if state else funds[-1]['fundingTime']
     halted=state['halted'] if state else False
     new=[f for f in funds if last<f['fundingTime']<=row['observed_ms']]
@@ -69,10 +85,10 @@ def step(state,row,funds):
     equity=account.equity(row['spot'],row['mark'])
     bridge=account.realized_spot+account.spot_qty*(row['spot']-account.spot_cost)+account.realized_perp+account.perp_unrealized(row['mark'])+account.funding-account.fees-account.financing
     if abs(equity-cfg.capital-bridge)>1e-6:raise ArithmeticError('Paper reconciliation failed')
-    return dict(kind='HYPOTHETICAL PAPER ONLY - no live orders',config=asdict(cfg),symbol=row['symbol'],observed_ms=row['observed_ms'],
+    return dict(kind='HYPOTHETICAL PAPER ONLY - no live orders',started_at_ms=state.get('started_at_ms',state['observed_ms']) if state else row['observed_ms'],intended_before=state['next_target'] if state else 0,intended_next=target,simulated_fills=account.fills,config=asdict(cfg),symbol=row['symbol'],observed_ms=row['observed_ms'],
         last_funding_ms=max([last]+[f['fundingTime'] for f in new]),next_target=target,halted=halted,
         account={k:v for k,v in vars(account).items() if k not in ('config','fills')},
-        receipt=dict(timestamp=row['timestamp'],equity=equity,net_pnl=equity-cfg.capital,funding_total=account.funding,fees=account.fees,
+        receipt=dict(timestamp=row['timestamp'],initializing=state is None,paper_epoch=state.get('started_at_ms',state['observed_ms']) if state else row['observed_ms'],equity=equity,net_pnl=equity-cfg.capital,funding_total=account.funding,fees=account.fees,
             residual_delta_units=account.spot_qty+account.perp_qty,margin_buffer=account.margin_buffer(row['mark']),new_funding_events=len(new),
             quote_window_seconds=row.get('quote_window_seconds',0),modeled_fills=len(account.fills),reconciliation_error=equity-cfg.capital-bridge))
 
@@ -93,7 +109,7 @@ def main():
             tmp=path.with_suffix('.tmp');tmp.write_text(json.dumps(value,indent=2));tmp.replace(path)
             print(json.dumps(dict(symbol=value['symbol'],**value['receipt'])))
         with (args.state_dir/'history.jsonl').open('a') as stream:
-            for _,value in updates:stream.write(json.dumps(dict(symbol=value['symbol'],**value['receipt']))+'\n')
+            for _,value in updates:stream.write(json.dumps(dict(symbol=value['symbol'],intended_before=value['intended_before'],intended_next=value['intended_next'],simulated_fills=value['simulated_fills'],**value['receipt']))+'\n')
     finally:
         os.close(descriptor);lock.unlink()
 

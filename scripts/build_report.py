@@ -1,7 +1,8 @@
-"""Create the evidence report and a Vietnamese decision memo from run artifacts."""
+"""Create the evidence report and an English decision memo from run artifacts."""
 import csv
 import html
 import json
+import os
 from pathlib import Path
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -16,11 +17,12 @@ DATA=ROOT/'artifacts/market'
 def read(name):return list(csv.DictReader((DATA/(name+'.csv')).open()))
 summary=read('summary');errors=read('forecast_errors');cost=read('cost_sensitivity');delay=read('delay_sensitivity');intervals=read('paired_uncertainty');ledger=read('ledger')
 receipt=json.loads((DATA/'receipt.json').read_text()); manifest=json.loads((ROOT/'data/market/manifest.json').read_text())
-font='/System/Library/Fonts/Supplemental/Times New Roman.ttf'
-bold='/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf'
+font_dir=Path(os.environ.get('P3_TIMES_FONT_DIR','/System/Library/Fonts/Supplemental'))
+font=str(font_dir/'Times New Roman.ttf')
+bold=str(font_dir/'Times New Roman Bold.ttf')
 pdfmetrics.registerFont(TTFont('TimesNR',font));pdfmetrics.registerFont(TTFont('TimesNRBold',bold))
 for name,file in [('TimesNRItalic','Times New Roman Italic.ttf'),('TimesNRBoldItalic','Times New Roman Bold Italic.ttf')]:
-    pdfmetrics.registerFont(TTFont(name,'/System/Library/Fonts/Supplemental/'+file))
+    pdfmetrics.registerFont(TTFont(name,str(font_dir/file)))
 pdfmetrics.registerFontFamily('TimesNR',normal='TimesNR',bold='TimesNRBold',italic='TimesNRItalic',boldItalic='TimesNRBoldItalic')
 styles=getSampleStyleSheet()
 styles.add(ParagraphStyle(name='Body',fontName='TimesNR',fontSize=12,leading=18,spaceAfter=7,alignment=TA_JUSTIFY,textColor=colors.black))
@@ -28,23 +30,25 @@ styles.add(ParagraphStyle(name='Title2',fontName='TimesNRBold',fontSize=12,leadi
 styles.add(ParagraphStyle(name='PaperTitle',parent=styles['Title2'],alignment=TA_CENTER,spaceBefore=0,spaceAfter=12))
 styles.add(ParagraphStyle(name='Small2',fontName='TimesNR',fontSize=12,leading=15,textColor=colors.black))
 styles.add(ParagraphStyle(name='Caption',fontName='TimesNR',fontSize=12,leading=15,spaceBefore=6,spaceAfter=6,keepWithNext=True))
-story=[];markdown=[];table_number=0
+story=[];markdown=[];table_number=0;base_caption_index=0;figure_number=0
 TABLE_CAPTIONS=['Net P&L by holdout sleeve and policy.','Accounting identities and treatment of cash flows.','Coverage audit of the 2025 market sample.','Temporal research partitions.','Development and validation net P&L (USDT).','Historical holdout attribution (USDT).','Forecast error and matched strategy economics.','Cost and execution-delay sensitivity (USDT).','Paired P&L differences and block-bootstrap intervals (USDT).','Isolated-margin diagnostics (USDT).','Reproduction commands and evidence artifacts.']
 def p(text):story.append(Paragraph(text.replace('&','&amp;'),styles['Body']));markdown.append(text.replace('<b>','**').replace('</b>','**'))
 def page(title):
     if not story:
         story.append(Paragraph(title,styles['PaperTitle']))
-        story.append(Paragraph('Crypto Carry and Execution Lab | Research report | 24 November 2026',ParagraphStyle(name='Meta',parent=styles['Body'],alignment=TA_CENTER)))
+        story.append(Paragraph('Crypto Carry and Execution Lab | Original study 24 November 2026 | Revised 25 November 2026',ParagraphStyle(name='Meta',parent=styles['Body'],alignment=TA_CENTER)))
         story.append(Paragraph('Abstract',styles['Title2']))
     else:
         import re
         title=re.sub(r'^0([1-9]) / ',r'\1. ',title)
         story.append(Paragraph(title,styles['Title2']))
     markdown.append('\n# '+title+'\n')
-def table(headers,rows,widths=None):
-    global table_number
+def table(headers,rows,widths=None,caption=None):
+    global table_number,base_caption_index
     table_number+=1
-    caption=f'Table {table_number}. '+TABLE_CAPTIONS[table_number-1]
+    if caption is None:
+        caption=TABLE_CAPTIONS[base_caption_index];base_caption_index+=1
+    caption=f'Table {table_number}. '+caption
     story.append(Paragraph(html.escape(caption),styles['Caption']));markdown.append(caption)
     values=[[Paragraph(('<b>'+html.escape(str(x))+'</b>') if i==0 else html.escape(str(x)),styles['Small2']) for x in r] for i,r in enumerate([headers]+rows)]
     if widths:widths=[w*451/480 for w in widths]
@@ -57,10 +61,12 @@ def find(symbol,policy,part='holdout'):return next(r for r in summary if r['symb
 class Lines(Flowable):
     def __init__(self,symbol,part='holdout'):Flowable.__init__(self);self.width=451;self.height=150;self.symbol=symbol;self.part=part
     def draw(self):
+        global figure_number
+        figure_number+=1
         c=self.canv; c.scale(451/480,451/480); names=['spot','continuous','threshold'];cols=['#666666','#000000','#333333']
         data=[[r for r in ledger if r['symbol']==self.symbol and r['partition']==self.part and r['policy']==name] for name in names]
         vals=[float(r['net_pnl']) for rows in data for r in rows];lo=min(vals+[0]);hi=max(vals+[0]);span=hi-lo or 1
-        c.setFont('TimesNR',12);c.setFillColor(colors.black);c.drawString(0,142,('Figure 1. ' if self.symbol=='BTCUSDT' else 'Figure 2. ')+self.symbol+' net P&L (USDT).');c.drawString(0,125,num(hi));c.drawString(0,20,num(lo))
+        c.setFont('TimesNR',12);c.setFillColor(colors.black);c.drawString(0,142,f'Figure {figure_number}. '+self.symbol+' net P&L (USDT).');c.drawString(0,125,num(hi));c.drawString(0,20,num(lo))
         for name,color,rows in zip(names,cols,data):
             line=c.beginPath()
             for i,r in enumerate(rows):
@@ -69,6 +75,28 @@ class Lines(Flowable):
                 else:line.moveTo(x,y)
             c.setStrokeColor(colors.HexColor(color));c.setDash([[],[5,2],[1,2]][names.index(name)]);c.drawPath(line);c.setDash([]);c.setFillColor(colors.HexColor(color));c.drawString(60+names.index(name)*135,4,name)
 
+def review_csv(name):
+    return list(csv.DictReader((ROOT/'artifacts/review'/(name+'.csv')).open()))
+diagnostics=review_csv('funding_diagnostics');regimes=review_csv('monthly_regimes');turnover=review_csv('turnover')
+class DiagnosticLines(Flowable):
+    def __init__(self,title,labels,series,unit):
+        Flowable.__init__(self);self.width=451;self.height=190;self.caption=title;self.labels=labels;self.series=series;self.unit=unit
+    def draw(self):
+        global figure_number
+        figure_number+=1;c=self.canv;c.setFont('TimesNR',12);c.setFillColor(colors.black)
+        c.drawString(0,176,f'Figure {figure_number}. '+self.caption)
+        allvals=[x for values in self.series.values() for x in values];lo=min(allvals+[0]);hi=max(allvals+[0]);span=hi-lo or 1
+        c.setFont('TimesNR',10);c.drawString(0,157,self.unit);c.drawString(0,139,num(hi));c.drawString(0,44,num(lo))
+        for j,(name,values) in enumerate(self.series.items()):
+            line=c.beginPath()
+            for i,value in enumerate(values):
+                x=65+i*375/max(1,len(values)-1);y=45+(value-lo)*95/span
+                if i:line.lineTo(x,y)
+                else:line.moveTo(x,y)
+            c.setStrokeColor(colors.black);c.setDash([[],[5,2]][j%2]);c.drawPath(line);c.setDash([]);c.drawString(65+j*180,5,name)
+        for i in sorted({0,len(self.labels)//2,len(self.labels)-1}):
+            c.drawString(65+i*345/max(1,len(self.labels)-1),25,str(self.labels[i]))
+
 page('Funding Carry after Transaction Costs: A BTC and ETH Study')
 p('Does long spot and short a linear perpetual produce useful net economics once funding reversals, both legs, turnover and separate collateral are counted? The answer in this fixed 2025 sample depends strongly on how often the position is switched.')
 p('Continuous carry made a small positive net result in the October-December holdout. The last-rate threshold repeatedly paid to enter and exit and lost money. Smoother forecasts reduced the loss relative to that threshold, but neither forecast strategy beat continuous carry in this holdout. This is a useful negative result, not a deployable return claim.')
@@ -76,7 +104,12 @@ p('<b>Keywords:</b> cryptocurrency; cash-and-carry; funding rates; transaction c
 story.append(Paragraph('Research overview',styles['Title2']))
 table(['Holdout sleeve','Continuous carry','Last-rate threshold'],[[s,num(find(s,'continuous')['net_pnl']),num(find(s,'threshold')['net_pnl'])] for s in ('BTCUSDT','ETHUSDT')],[150,165,165])
 p('Each asset/policy starts with a separate 100,000 USDT sleeve. Results are hypothetical bar-based executions after fees and slippage. They exclude live fills, custody/venue default, tax, tier-exact liquidation and a forward paper track record. Do not interpret the two sleeves as a combined 100,000 USDT portfolio.')
-p('The package contains the audited data contract, frozen study receipt, all three research partitions, six policy variants, forecast errors, cost/delay sensitivities, paired uncertainty, independent Excel mechanics and 18 automated tests. Run identifier: '+receipt['run_id']+'.')
+p('The package contains the audited data contract, frozen study receipt, all three research partitions, six policy variants, forecast errors, cost/delay sensitivities, paired uncertainty, independent Excel mechanics and 22 automated tests. Run identifier: '+receipt['run_id']+'.')
+
+page('Research context and contribution')
+p('Schmeling, Schrimpf and Todorov [6] document variation in crypto futures basis and relate carry to demand for leveraged exposure and limited arbitrage capital. Their analysis also emphasizes margin and liquidation risk. Their dated-futures setting should not be treated as a promise of the same return for a perpetual funding strategy.')
+p('Ackerer, Hugonnier and Jermann [7] study no-arbitrage pricing of perpetual contracts and the role of periodic funding in anchoring prices. That theoretical connection does not establish that a historical last-rate trading rule survives transaction costs.')
+p('This project addresses a narrower empirical question: under a disclosed single-venue, cash-funded, sampled-execution design, how much of observed carry remains after both legs, switching and collateral constraints? It does not replicate either paper, estimate a structural convenience yield, or infer a guaranteed annual carry return. The contribution is an auditable accounting and decision comparison with negative findings retained.')
 
 page('01 / Contract mechanics and capital')
 p('Universe: Binance BTCUSDT and ETHUSDT spot plus USDT-margined linear perpetuals. Perpetual quantity is signed base units, with short quantities negative. Positive funding pays a short position [2]. Funding cash at an event is -q_perp × settlement mark × settled rate. New positions entered after settlement receive no cash for that event.')
@@ -90,6 +123,14 @@ table(['Coverage 2025','BTCUSDT','ETHUSDT'],[['Funding events','1,095','1,095'],
 p('All 93 January BTC funding timestamps and rates match the same-provider public archive exactly. This checks schema and ingestion, not independent exchange truth. Funding timestamps are actual event milliseconds. Price references are the nominal 8-hour bar OPEN; close, high and low are never used as executable prices or signal features. A reference can precede funding availability by up to 16 ms, so it remains an execution approximation.')
 p('The bar-high mark series is used only as an ex-post isolated-margin diagnostic. It is never a tradable quote or predictor. The archive microsecond convention for 2025 spot files is not applied to API kline milliseconds. No missing funding is filled with zero. A changed cadence, duplicate or incomplete coverage stops normalization.')
 p('Access is public, but no unrestricted market-data redistribution license is asserted. Raw and normalized snapshots stay out of the public source export. The private delivery preserves them for reproducibility. Historical maintenance tiers, fee tier, minimum order filters and depth are unavailable and explicitly remain assumptions.')
+
+page('2.1. Post-study funding and basis diagnostics')
+p('The following descriptive analysis was added after the historical holdout was consumed. It explains market conditions and switching costs; it does not select a new threshold, model or sample. Rates are basis points per observed settlement. Basis is traded perpetual / spot minus one, separate from the settlement mark.')
+table(['Asset','Negative funding','Longest negative run','Lag-1 funding correlation','Median basis (bps)'],[[r['symbol'],pct(r['negative_fraction']),r['longest_negative_run'],f"{float(r['funding_lag1_correlation']):.3f}",num(r['basis_median_bps'])] for r in diagnostics],[100,95,95,95,95],caption='Descriptive funding persistence and traded-price basis, full 2025 sample.')
+p('BTC funding is negative at approximately 12.9% of observed settlements and ETH at 16.2%. Positive average funding therefore does not remove payment reversals. Lag-one funding correlation is around 0.55 for BTC and 0.53 for ETH; serial dependence motivates testing smoother forecasts but does not establish an investable edge. Contemporaneous funding/basis correlations are descriptive, not causal predictors.')
+monthly={s:[r for r in regimes if r['symbol']==s] for s in ('BTCUSDT','ETHUSDT')}
+story.append(DiagnosticLines('Monthly mean funding in the observed year',[r['month'] for r in monthly['BTCUSDT']],{s:[float(r['mean_funding_bps']) for r in rs] for s,rs in monthly.items()},'bps per settlement'))
+p('The monthly summaries preserve all events rather than removing difficult regimes. Full quantiles, histogram counts and negative-run diagnostics are retained in artifacts/review and the first executed notebook. Bar sampling and timestamp offsets limit interpretation of the basis measurements.')
 
 page('03 / Frozen temporal design')
 table(['Partition','Dates UTC','Purpose / events per asset'],[['Development','Jan-Jun 2025','Pipeline development / 543'],['Validation','Jul-Sep 2025','Fixed specification check / 276'],['Historical holdout','Oct-Dec 2025','Final retrospective comparison / 276']],[110,145,225])
@@ -109,6 +150,10 @@ table(['Sleeve / policy','Net P&L','Funding','Fees','Max DD'],[[s+' / '+name,num
 story.append(Lines('BTCUSDT'));story.append(Spacer(1,10));story.append(Lines('ETHUSDT'))
 p('Values are USDT except drawdown. Slippage is already inside leg P&L. Full spot/perp attribution, residual exposure, fills and sampled margin are in summary.csv and ledger.csv. A positive carry result is small relative to the 100,000 denominator; gross funding alone exaggerates its economics.')
 
+page('5.1. Turnover and the gross-to-net mechanism')
+table(['Asset / policy','Fill count','Two-leg turnover / capital','Fees (USDT)'],[[r['symbol']+' / '+r['policy'],r['fills'],num(r['turnover_over_capital']),num(r['fees'])] for r in turnover if r['partition']=='holdout' and r['policy'] in ('continuous','threshold','forecast_rolling_mean')],[230,65,100,85],caption='Holdout execution intensity; absolute traded notional on both legs divided by 100,000 USDT.')
+p('ETH continuous carry uses four modeled fills, whereas the naive threshold uses 192. Two-leg turnover rises from about 1.89 times capital to 103.83 times. Funding receipts are lower for the switching policy while its commission bill rises sharply. The mean forecast reduces switching intensity, explaining part of its improvement over the naive rule. This is an execution-cost mechanism, not proof that forecast skill produces alpha.')
+
 page('06 / Forecast skill versus strategy value')
 table(['Asset / model','Holdout MAE, bps','Matched net P&L'],[[s+' / '+m,num(float(next(r['mae'] for r in errors if r['symbol']==s and r['partition']=='holdout' and r['model']==m))*10000),num(find(s,'forecast_'+m)['net_pnl'])] for s in ('BTCUSDT','ETHUSDT') for m in ('last_rate','rolling_mean','ridge_ar1')],[240,120,120])
 p('Forecasts predict the next settled rate using data through the current settlement. Their recorded training cutoff precedes the target event. All three are inserted into the same threshold rule. During initial model warm-up the matched forecast family holds cash; the full-history last-rate trading baseline is also reported separately. In validation/holdout all models already have a past training history.')
@@ -119,6 +164,7 @@ page('07 / Friction and uncertainty')
 table(['Asset / policy','Cost ×1','Cost ×2','Cost ×3','Delay 3 events'],[[s+' / '+name]+[num(next(r['net_pnl'] for r in cost if r['symbol']==s and r['partition']=='holdout' and r['policy']==name and int(r['cost_multiple'])==m)) for m in (1,2,3)]+[num(next(r['net_pnl'] for r in delay if r['symbol']==s and r['partition']=='holdout' and r['policy']==name and r['delay_events']=='3'))] for s in ('BTCUSDT','ETHUSDT') for name in ('continuous','threshold')],[180,75,75,75,75])
 p('Cost multiples apply to both leg commissions and adverse slippage. Delay sensitivity is separate, at base costs, and changes the first eligible execution observation. The small continuous-carry profit has limited room for larger friction or opportunity cost. Base fees are assumptions, not a promise of the user’s exchange tier.')
 table(['Threshold minus continuous','Observed difference','95% block interval'],[[s,num(next(r['paired_pnl_difference'] for r in intervals if r['symbol']==s and r['partition']=='holdout' and r['policy']=='threshold')),num(next(r['block_bootstrap_low'] for r in intervals if r['symbol']==s and r['partition']=='holdout' and r['policy']=='threshold'))+' to '+num(next(r['block_bootstrap_high'] for r in intervals if r['symbol']==s and r['partition']=='holdout' and r['policy']=='threshold'))] for s in ('BTCUSDT','ETHUSDT')],[180,125,175])
+story.append(DiagnosticLines('Continuous carry under higher friction',['1x','2x','3x'],{symbol:[float(next(r['net_pnl'] for r in cost if r['symbol']==symbol and r['partition']=='holdout' and r['policy']=='continuous' and int(r['cost_multiple'])==m)) for m in (1,2,3)] for symbol in ('BTCUSDT','ETHUSDT')},'Net P&L (USDT)'))
 p('Uncertainty uses paired daily P&L differences, seven-day moving blocks, 2,000 replications and seed 20261124. It resamples the observed 92-day regime and does not model new regimes, venue failure, model selection or execution misspecification. Intervals are descriptive and are not multiple-testing-adjusted. Forecast-versus-last-rate intervals are in paired_uncertainty.csv.')
 
 page('08 / Margin is a separate survival problem')
@@ -130,9 +176,10 @@ p('USDT equals USD in the base replay. The depeg scenario translates economic eq
 
 page('09 / Operations, reproduction and decision')
 p('The paper module is strictly read-only: public prices/funding in, hypothetical targets and receipts out. It contains no authenticated or order API. The first snapshot starts flat and cannot claim earlier funding. Later runs settle new funding on existing paper holdings before executing the prior target. A state lock, duplicate-time guard, funding-gap check, quote sanity check and event-level reconciliation fail closed.')
+p('Release 0.3 preserves the original economic source and outcomes. Python 3.9.6 reproduced all seven CSV outputs byte-for-byte. A separate Python 3.12 tolerance check found identical trading outcomes, with only forecast-error summary rounding differing at approximately 6.8e-21. The original freeze is not reset; new receipts record the reproduction mode and environment.')
 p('Operational check: GitHub CI passed. The hosted paper run returned HTTP 451 from Binance futures bookTicker; its schedule was removed and no successful paper state is claimed. The public dashboard and CSV export were checked in Chrome.')
 p('Paper polling is coarser than live trading. Quotes are midpoint references with modeled slippage; funding is actually observed but fills are hypothetical. A changed cadence, stale quote, incomplete page or failed network request stops the update. Scheduled execution depends on endpoint access from the chosen runner. A successful workflow is operational evidence, never proof of a future return.')
-table(['Reproduction','Command / artifact'],[['Verify engine','python3 -m unittest discover -s tests -v'],['Synthetic replay','python3 -m carry.run demo'],['Normalize preserved snapshots','python3 -m carry.market'],['Frozen market study','python3 -m carry.study'],['Read-only paper observation','python3 -m carry.paper'],['Receipts','artifacts/market/freeze.json and receipt.json']],[160,320])
+table(['Reproduction','Command / artifact'],[['Verify engine','python3 -m unittest discover -s tests -v'],['Synthetic replay','python3 -m carry.run demo'],['Normalize preserved snapshots','python3 -m carry.market'],['Frozen study reproduction','python3 -m carry.reproduce'],['Read-only paper observation','python3 -m carry.paper'],['Receipts','artifacts/market/freeze.json and receipt.json']],[160,320])
 p('<b>Decision:</b> retain continuous carry as the research benchmark and reject this naive threshold as an execution policy at the assumed fee schedule. Do not deploy from these results. The next study should price switching decisions against expected holding duration and friction, acquire execution-level observations and historical margin tiers, and accumulate a genuine forward paper record without recycling the consumed holdout.')
 story.append(PageBreak())
 story.append(Paragraph('References',styles['Title2']))
@@ -144,6 +191,10 @@ references=[
  '[4] Binance. (2026). USD-M futures market-data API: Funding history, contract klines and mark-price klines. https://fapi.binance.com/fapi/v1/fundingRate ; https://fapi.binance.com/fapi/v1/klines ; https://fapi.binance.com/fapi/v1/markPriceKlines. Retrieved 24 November 2026.',
  '[5] Binance. (2026). USD-M futures exchange information [Contract specification snapshot]. https://fapi.binance.com/fapi/v1/exchangeInfo. Retrieved 24 November 2026. Current specifications do not establish historical fee or maintenance tiers.'
 ]
+references.extend([
+ '[6] Schmeling, M., Schrimpf, A., & Todorov, K. (2023). Crypto carry. BIS Working Papers No. 1087, April 2023 version. https://www.bis.org/publications/working-paper-1087-crypto-carry.pdf (accessed 25 November 2026).',
+ '[7] Ackerer, D., Hugonnier, J., & Jermann, U. (2024). Perpetual Futures Pricing. arXiv:2310.11771v2, revised 4 September 2024. https://arxiv.org/abs/2310.11771v2 (accessed 25 November 2026).'
+])
 reference_style=ParagraphStyle(name='Reference',parent=styles['Body'],alignment=TA_LEFT,leftIndent=18,firstLineIndent=-18,spaceAfter=12)
 for reference in references:
     story.append(Paragraph(html.escape(reference),reference_style));markdown.append(reference)
@@ -183,7 +234,7 @@ Frequent switching makes the threshold policy's commissions exceed its funding r
 
 - **Coverage:** 1,095 funding events and 1,095 bars for each spot, perpetual and mark stream per asset in 2025, with no missing or duplicate nominal events.
 - **Ingestion cross-check:** All 93 January BTC funding timestamps and rates match between the public archive and API. Both are from the same provider, so this is not independent confirmation of exchange truth.
-- **Accounting:** 18 tests and 13,140 event-ledger rows across six policy variants, three temporal partitions and two assets. Maximum reconciliation residual is below 1e-9 USDT.
+- **Accounting:** 22 tests and 13,140 event-ledger rows across six policy variants, three temporal partitions and two assets. Maximum reconciliation residual is below 1e-9 USDT.
 - **Research controls:** Written protocol and frozen source/input/configuration hashes before the first strategy-return inspection; chronological development, validation and historical holdout partitions; paired seven-day block-bootstrap intervals; cost multiples of 1, 2 and 3; execution delays of 1, 2 and 3 observations.
 - **Independent review:** Formula-driven workbook with a Python golden-case reconciliation, executed notebooks and a public dashboard retaining negative results.
 
@@ -192,6 +243,10 @@ Frequent switching makes the threshold policy's commissions exceed its funding r
 Executable references are eight-hour bar opens matched to actual funding timestamps, with an offset of up to 16 ms. Fills, fee tiers and flat maintenance rates are assumptions. The bar-high margin proxy does not certify intraperiod liquidation safety. P&L is denominated in USDT, not guaranteed USD value. Historical margin tiers, order-book depth, execution capacity and a forward track record remain unverified.
 
 The paper collector reads public data and records hypothetical positions without API keys or order endpoints. Its hosted GitHub run returned **HTTP 451** from Binance futures. Automatic scheduling was removed; no successful forward paper state or performance is claimed. The failure is retained as operational evidence rather than replaced with assumed data.
+
+## Release 0.3 review improvements
+
+The original study outcomes are unchanged. Four executed notebooks now include rich diagnostic tables/figures, funding/basis regimes and turnover analysis. Excel adds historical sleeve selectors, a full derived account source, a native two-variable fee/slippage Data Table and a formula-driven cash/collateral scenario. The dashboard compares partitions, all policy variants, forecasts and archived cost runs. Exact reproduction is isolated from the consumed study and separately labeled across Python versions.
 
 ## Next research gate
 

@@ -73,6 +73,12 @@ def normalize(raw_dir, out):
         timestamp_method='Actual funding milliseconds; matched nominal 8h bar OPEN, not close. Bar open is up to milliseconds stale; fills are hypothetical with slippage. Signal executes at least one later settlement.',
         assumptions='Flat 1% maintenance plus 10bps close reserve, 10% initial margin, 10/5bps spot/perp fees, 2bps each fill; 0.001 base-unit common quantity step.',
         source_sha256=hashes,coverage=audit,retrieved_at=datetime.now(timezone.utc).isoformat())
+    prior_path = out / 'manifest.json'
+    if prior_path.exists():
+        prior = json.loads(prior_path.read_text())
+        # Acquisition time belongs to the snapshot, not to each normalization run.
+        if prior.get('source_sha256') == hashes:
+            manifest['retrieved_at'] = prior['retrieved_at']
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
     return manifest
 
